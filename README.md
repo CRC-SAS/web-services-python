@@ -5,7 +5,7 @@
 #### Daniel Bonhaure (danielbonhaure@gmail.com)
 #### Santiago Rovere (srovere@gmail.com)
 #### Guillermo Podestá (gpodesta@rsmas.miami.edu)
-#### *04 de mayo de 2020*
+#### *09 de diciembre de 2020*
 
 
 # 1. Introducción
@@ -32,7 +32,9 @@ La API descrita en este documento provee acceso a información organizada en los
 * índices de sequía;
 * eventos secos y húmedos identificados mediante índices de sequía;
 * índices de vegetación (NDVI y EVI) derivados a partir de datos satelitales;
-* precipitaciones estimadas combinando datos de satélite e in situ (CHIRPS).
+* precipitaciones estimadas combinando datos de satélite e in situ (CHIRPS);
+* pronósticos de precipitación y sequía a 15 días (CHIRPS-GEFS);
+* índice de stress evaporativo (ESI) y percentiles derivados.
 
 Cada uno de los conjuntos de datos accesibles se describirá en más detalle en la sección *Servicios*.
 
@@ -203,7 +205,8 @@ Para cada estación, se puede consultar información relativa a la misma (metada
     longitud: float,
     elevacion: integer,
     nivel_adm1: string,
-    nivel_adm2: string
+    nivel_adm2: string, 
+    tipo: string (C = convencional, A = automática)
   }
 ]
 
@@ -220,14 +223,14 @@ print(estaciones.head(6).to_markdown(tablefmt="github", showindex=False))
 
 ```
 
-|   omm_id | nombre                      |   latitud |   longitud |   elevacion | nivel_adm1          | nivel_adm2           |
-|----------|-----------------------------|-----------|------------|-------------|---------------------|----------------------|
-|    87008 | Abra Pampa INTA             |    -22.83 |     -65.85 |        3484 | Jujuy               | Cochinoca            |
-|    87118 | Famaillá INTA               |    -27.05 |     -65.42 |         363 | Tucumán             | Famaillá             |
-|    87131 | La María INTA               |    -28.23 |     -64.15 |         169 | Santiago del Estero | Silípica             |
-|    87144 | Las Breñas INTA             |    -27.08 |     -61.12 |         102 | Chaco               | Nueve de Julio       |
-|    87147 | Pres. Roque Sáenz Peña INTA |    -26.87 |     -60.45 |          90 | Chaco               | Comandante Fernández |
-|    87152 | El Colorado INTA            |    -26.3  |     -59.37 |          78 | Formosa             | Pirané               |
+|   omm_id | nombre                      |   latitud |   longitud |   elevacion | nivel_adm1          | nivel_adm2           | tipo   |
+|----------|-----------------------------|-----------|------------|-------------|---------------------|----------------------|--------|
+|    87118 | Famaillá INTA               |    -27.05 |     -65.42 |         363 | Tucumán             | Famaillá             | C      |
+|    87131 | La María INTA               |    -28.23 |     -64.15 |         169 | Santiago del Estero | Silípica             | C      |
+|    87144 | Las Breñas INTA             |    -27.08 |     -61.12 |         102 | Chaco               | Nueve de Julio       | C      |
+|    87147 | Pres. Roque Sáenz Peña INTA |    -26.87 |     -60.45 |          90 | Chaco               | Comandante Fernández | C      |
+|    87158 | Colonia Benítez INTA        |    -27.42 |     -58.93 |          54 | Chaco               | San Fernando         | C      |
+|    87180 | Cerro Azul INTA             |    -27.65 |     -55.43 |         270 | Misiones            | Leandro N. Alem      | C      |
 
 
 ### 4.1.2. Estaciones de un país
@@ -249,7 +252,8 @@ print(estaciones.head(6).to_markdown(tablefmt="github", showindex=False))
     longitud: float,
     elevacion: integer,
     nivel_adm1: string,
-    nivel_adm2: string
+    nivel_adm2: string, 
+    tipo: string (C = convencional, A = automática)
   }
 ]
 
@@ -266,14 +270,14 @@ print(estaciones_paraguay.head(6).to_markdown(tablefmt="github", showindex=False
 
 ```
 
-|   omm_id | nombre                                         |   latitud |   longitud |   elevacion | nivel_adm1       | nivel_adm2         |
-|----------|------------------------------------------------|-----------|------------|-------------|------------------|--------------------|
-|    86125 | Pozo Colorado 125                              |   -23.298 |    -59.202 |          98 | Presidente Hayes | Pozo Colorado      |
-|    86248 | Ciudad del Este                                |   -25.519 |    -54.613 |         196 | Alto Paraná      | Minga Guazú        |
-|    86033 | Bahía Negra                                    |   -20.23  |    -58.17  |          82 | Alto Paraguay    | Fuerte Olimpo      |
-|    86065 | Base Aérea “Tte. 2º de Mna. Pelayo Prats Gill” |   -22.56  |    -61.61  |         206 | Boquerón         | Dr. Pedro- P. Peña |
-|    86068 | Aeropuerto de Mcal. José Félix Estigarribia    |   -22.03  |    -60.62  |         167 | Boquerón         | Mcal. Estigarribia |
-|    86086 | Puerto Casado                                  |   -23.58  |    -60.37  |          78 | Alto Paraguay    | La Victoria        |
+|   omm_id | nombre                                         |   latitud |   longitud |   elevacion | nivel_adm1       | nivel_adm2         | tipo   |
+|----------|------------------------------------------------|-----------|------------|-------------|------------------|--------------------|--------|
+|    86125 | Pozo Colorado 125                              |   -23.298 |    -59.202 |          98 | Presidente Hayes | Pozo Colorado      | C      |
+|    86248 | Ciudad del Este                                |   -25.519 |    -54.613 |         196 | Alto Paraná      | Minga Guazú        | C      |
+|    86033 | Bahía Negra                                    |   -20.23  |    -58.17  |          82 | Alto Paraguay    | Fuerte Olimpo      | C      |
+|    86065 | Base Aérea “Tte. 2º de Mna. Pelayo Prats Gill” |   -22.56  |    -61.61  |         206 | Boquerón         | Dr. Pedro- P. Peña | C      |
+|    86068 | Aeropuerto de Mcal. José Félix Estigarribia    |   -22.03  |    -60.62  |         167 | Boquerón         | Mcal. Estigarribia | C      |
+|    86086 | Puerto Casado                                  |   -23.58  |    -60.37  |          78 | Alto Paraguay    | La Victoria        | C      |
 
 
 ### 4.1.3. Estaciones de un país y de una institución o red
@@ -306,7 +310,8 @@ print(estaciones_paraguay.head(6).to_markdown(tablefmt="github", showindex=False
     longitud: float,
     elevacion: integer,
     nivel_adm1: string,
-    nivel_adm2: string
+    nivel_adm2: string, 
+    tipo: string (C = convencional, A = automática)
   }
 ]
 
@@ -323,14 +328,14 @@ print(estaciones_argentina_smn.head(6).to_markdown(tablefmt="github", showindex=
 
 ```
 
-|   omm_id | nombre           |   latitud |   longitud |   elevacion | nivel_adm1   | nivel_adm2                 |
-|----------|------------------|-----------|------------|-------------|--------------|----------------------------|
-|    87016 | Orán Aero        |  -23.1547 |   -64.3281 |         357 | Salta        | Orán                       |
-|    87022 | Tartagal Aero    |  -22.6166 |   -63.7965 |         450 | Salta        | General José de San Martín |
-|    87043 | Jujuy Univ. Nac. |  -24.1786 |   -65.3263 |        1302 | Jujuy        | Palpalá                    |
-|    87046 | Jujuy Aero       |  -24.384  |   -65.0955 |         905 | JUJUY        | El Carmen                  |
-|    87047 | Salta Aero       |  -24.8443 |   -65.4757 |        1221 | Salta        | Capital                    |
-|    87050 | Metán            |  -25.5243 |   -64.973  |         855 | Salta        | Metán                      |
+|   omm_id | nombre           |   latitud |   longitud |   elevacion | nivel_adm1   | nivel_adm2                 | tipo   |
+|----------|------------------|-----------|------------|-------------|--------------|----------------------------|--------|
+|    87016 | Orán Aero        |  -23.1547 |   -64.3281 |         357 | Salta        | Orán                       | C      |
+|    87022 | Tartagal Aero    |  -22.6166 |   -63.7965 |         450 | Salta        | General José de San Martín | C      |
+|    87043 | Jujuy Univ. Nac. |  -24.1786 |   -65.3263 |        1302 | Jujuy        | Palpalá                    | C      |
+|    87046 | Jujuy Aero       |  -24.384  |   -65.0955 |         905 | JUJUY        | El Carmen                  | C      |
+|    87047 | Salta Aero       |  -24.8443 |   -65.4757 |        1221 | Salta        | Capital                    | C      |
+|    87050 | Metán            |  -25.5243 |   -64.973  |         855 | Salta        | Metán                      | C      |
 
 
 ### 4.1.4. Estaciones geográficamente vecinas
@@ -357,7 +362,8 @@ Este servicio permite buscar las estaciones geográficamente vecinas a una estac
     longitud: float,
     elevacion: integer,
     nivel_adm1: string,
-    nivel_adm2: string,
+    nivel_adm2: string, 
+    tipo: string (C = convencional, A = automática),
     distancia: float,
     diferencia_elevacion: float
   }
@@ -384,11 +390,11 @@ print(estaciones_vecinas_pehuajo.to_markdown(tablefmt="github", showindex=False)
 
 ```
 
-|   omm_id | nombre          |   latitud |   longitud |   elevacion | nivel_adm1   | nivel_adm2      |   distancia |   diferencia_elevacion |
-|----------|-----------------|-----------|------------|-------------|--------------|-----------------|-------------|------------------------|
-|    87540 | Trenque Lauquen |  -35.969  |   -62.7261 |          95 | Buenos Aires | Trenque Lauquen |     79.49   |                      8 |
-|    87640 | Bolívar Aero    |  -36.1864 |   -61.0727 |          94 | Buenos Aires | Bolívar         |     80.6614 |                      7 |
-|    87550 | Nueve de Julio  |  -35.439  |   -60.8819 |          76 | Buenos Aires | Nueve de Julio  |     99.1498 |                     11 |
+|   omm_id | nombre             |   latitud |   longitud |   elevacion | nivel_adm1   | nivel_adm2      | tipo   |   distancia |   diferencia_elevacion |
+|----------|--------------------|-----------|------------|-------------|--------------|-----------------|--------|-------------|------------------------|
+| 80000652 | EEA Cesareo Naredo |  -36.5    |   -62      |         120 | Buenos Aires | Guamini         | A      |     74.2367 |                     33 |
+|    87540 | Trenque Lauquen    |  -35.969  |   -62.7261 |          95 | Buenos Aires | Trenque Lauquen | C      |     79.49   |                      8 |
+|    87539 | Trenque Lauquen    |  -35.9692 |   -62.7262 |          95 | Buenos Aires | Trenque Lauquen | A      |     79.5031 |                      8 |
 
 
 
@@ -398,6 +404,18 @@ Los siguientes dos servicios permiten acceder a los valores diarios para las var
 
   * búsqueda de datos para TODAS las variables observadas en UNA estación meteorológica; o
   * búsqueda de datos para UNA variable observada en UNA estación meteorológica.
+  
+Estos servicios, además de devolver los valores diarios de las variables, incluyen también información resultante de los procesos de control de calidad y/o  verificación manual en caso de haber sido efectuados. Esta información está presente en el atributo *estado* como dato categórico o etiqueta. Los valores posibles de las etiquetas son los siguientes:
+
+ * **A**: el valor de la variable ha sido *aprobado* por el control de calidad;
+ * **S**: el valor de la variable ha sido declarado como *sospechoso* por el control de calidad;
+ * **R**: el valor de la variable ha sido declarado como sospechoso por el control de calidad pero ha sido *ratificado* durante el proceso de verificación manual;
+ * **E** : el valor de la variable ha sido declarado como sospechoso por el control de calidad y ha sido *eliminado* durante el proceso de verificación manual;
+ * **C**: el valor de la variable ha sido declarado como sospechoso por el control de calidad y ha sido *corregido* durante el proceso de verificación manual;
+ * **N**: el valor de la variable ha sido declarado como sospechoso por el control de calidad y ha sido declarado *no corregible* durante el proceso de verificación manual;
+ * **N/A**: aún no se ha ejecutado el control de calidad para la estación, fecha y variable asociada.
+
+Puede encontrar mayor información acerca del proceso de control de calidad en [https://www.crc-sas.org/es/pdf/reporte_tecnico_CRC-SAS-2014-001.pdf].
 
 ### 4.2.1. Búsqueda de datos para *todas* las variables observadas por una estación meteorológica
 
@@ -417,6 +435,7 @@ Los siguientes dos servicios permiten acceder a los valores diarios para las var
     omm_id: integer
     fecha: date,
     variable_id: string,
+    estado: string,
     valor: float
   }
 ]
@@ -432,7 +451,7 @@ url_registros_diarios = f"{base_url}/registros_diarios/87544/{fecha_desde}/{fech
 registros_largo = consumir_servicio_JSON(url=url_registros_diarios, 
                                                usuario=usuario_default, clave=clave_default)
 registros_ancho = (registros_largo
-    .pivot_table(index=['omm_id','fecha'], columns='variable_id', values='valor')
+    .pivot_table(index=['omm_id','fecha', 'estado'], columns='variable_id', values='valor')
     .reset_index().rename_axis(None, axis=1))
 
 # Tabla de datos de todas las variables
@@ -440,14 +459,14 @@ print(registros_ancho.head(6).to_markdown(tablefmt="github", showindex=False))
 
 ```
 
-|   omm_id | fecha      |   helio |   hr |   nub |   prcp |   pres_est |   pres_nm |   td |   tmax |   tmed |   tmin |   vmax_d |   vmax_f |   vmed |
-|----------|------------|---------|------|-------|--------|------------|-----------|------|--------|--------|--------|----------|----------|--------|
-|    87544 | 2019-01-01 |     9.7 |   72 |     6 |     18 |      996.5 |    1006.4 | 22.4 |   32.6 |   28.1 |   19   |       29 |     11.8 |    3.1 |
-|    87544 | 2019-01-02 |     2.8 |   84 |     7 |     19 |      997.9 |    1007.9 | 19.2 |   27.4 |   22.2 |   20.2 |       16 |     15.4 |    7   |
-|    87544 | 2019-01-03 |    13.3 |   50 |     1 |      0 |     1002.3 |    1012.5 | 10.4 |   27   |   21.7 |   12   |       16 |     11.3 |    3.1 |
-|    87544 | 2019-01-04 |    13.2 |   57 |     0 |      0 |     1002.4 |    1012.5 | 15.7 |   30.3 |   25.1 |   17.2 |        2 |     10.3 |    3.4 |
-|    87544 | 2019-01-05 |    12.3 |   57 |     2 |     26 |      999.2 |    1009.2 | 17.2 |   30.6 |   26.5 |   17.4 |       18 |     17.5 |    4.8 |
-|    87544 | 2019-01-06 |     1.3 |   83 |     8 |      0 |      994.6 |    1004.7 | 18.8 |   25.4 |   21.9 |   18.6 |       23 |     14.4 |    2.7 |
+|   omm_id | fecha      | estado   |   helio |   hr |   nub |   prcp |   pres_est |   pres_nm |   td |   tmax |   tmed |   tmin |   vmax_d |   vmax_f |   vmed |
+|----------|------------|----------|---------|------|-------|--------|------------|-----------|------|--------|--------|--------|----------|----------|--------|
+|    87544 | 2019-01-01 | A        |     9.7 |   72 |     6 |     18 |      996.5 |    1006.4 | 22.4 |   32.6 |   28.1 |   19   |       29 |     11.8 |    3.1 |
+|    87544 | 2019-01-02 | A        |     2.8 |   84 |     7 |     19 |      997.9 |    1007.9 | 19.2 |   27.4 |   22.2 |   20.2 |       16 |     15.4 |    7   |
+|    87544 | 2019-01-03 | A        |    13.3 |   50 |     1 |      0 |     1002.3 |    1012.5 | 10.4 |   27   |   21.7 |   12   |       16 |     11.3 |    3.1 |
+|    87544 | 2019-01-04 | A        |    13.2 |   57 |     0 |      0 |     1002.4 |    1012.5 | 15.7 |   30.3 |   25.1 |   17.2 |        2 |     10.3 |    3.4 |
+|    87544 | 2019-01-05 | A        |    12.3 |   57 |     2 |     26 |      999.2 |    1009.2 | 17.2 |   30.6 |   26.5 |   17.4 |       18 |     17.5 |    4.8 |
+|    87544 | 2019-01-06 | A        |     1.3 |   83 |     8 |      0 |      994.6 |    1004.7 | 18.8 |   25.4 |   21.9 |   18.6 |       23 |     14.4 |    2.7 |
 
 
 
@@ -503,6 +522,7 @@ plt.show()
     omm_id: integer
     fecha: date,
     variable_id: string,
+    estado: string,
     valor: float
   }
 ]
@@ -1083,7 +1103,7 @@ print(bondad_ajuste.to_markdown(tablefmt="github", showindex=False))
 
 ## 4.6. Índices de vegetación (NDVI y EVI) a partir de datos satelitales
 
-Este servicio permite consultar datos de índices de vegetación derivados a partir del instrumento MODIS a bordo de los satélites Aqua y Terra operados por la NASA. Los índices disponibles son el NDVI (Normalized Difference Vegetation Index) y el EVI (Enhanced Vegetation Index) [16]. Se proveen datos para cualquier aŕea incluida dentro del CRC-SAS, la cual debe especificarse en formato GeoJSON [17]. Para limitar el volumen de datos a transferir por medio del servicio, el área de la zona especificada no debe exceder los 200.000 km^2^.
+Este servicio permite consultar datos de índices de vegetación derivados a partir del instrumento MODIS a bordo de los satélites Aqua y Terra operados por la NASA. Los índices disponibles son el NDVI (Normalized Difference Vegetation Index) y el EVI (Enhanced Vegetation Index) [16]. Se proveen datos para cualquier aŕea incluida dentro del CRC-SAS, la cual debe especificarse en formato GeoJSON [17]. Para limitar el volumen de datos a transferir por medio del servicio, el área de la zona especificada no debe exceder los 2.000.000 km^2^.
 
 El servicio devuelve como respuesta un stream de datos binarios correspondiente a un archivo de formato NetCDF [18]. Dicho archivo NetCDF tiene la siguiente estructura de dimensiones y variables:
 
@@ -1153,7 +1173,7 @@ plt.show()
 
 ### 4.7.1. Totales de precipitación por péntada y por mes
 
-Este servicio permite consultar valores de precipitación contenidos en el producto CHIRPS [21]. Las precipitaciones en CHIRPS son derivadas a partir de la combinación de datos satélitales e in situ. Los datos de precipitación que devuelve este servicio pueden solicitarse con un nivel de agregación temporal a escalas de péntadas o meses. Los datos de precipitación se devuelven en una grilla regular de 0,1 grado por 0,1 grado de latitud y longitud. Se proveen datos para cualquier aŕea incluida dentro del CRC-SAS, la cual debe especificarse en formato GeoJSON [17]. Para limitar el volumen de datos a transferir por medio del servicio, el área de la zona especificada no debe exceder los 200.000 km^2^.
+Este servicio permite consultar valores de precipitación contenidos en el producto CHIRPS [21]. Las precipitaciones en CHIRPS son derivadas a partir de la combinación de datos satélitales e in situ. Los datos de precipitación que devuelve este servicio pueden solicitarse con un nivel de agregación temporal a escalas de péntadas o meses. Los datos de precipitación se devuelven en una grilla regular de 0,1 grado por 0,1 grado de latitud y longitud. Se proveen datos para cualquier aŕea incluida dentro del CRC-SAS, la cual debe especificarse en formato GeoJSON [17]. Para limitar el volumen de datos a transferir por medio del servicio, el área de la zona especificada no debe exceder los 2.000.000 km^2^.
 
 El servicio devuelve como respuesta un stream de datos binarios correspondiente a un archivo de formato NetCDF [18]. Dicho archivo NetCDF tiene la siguiente estructura de dimensiones y variables:
 
@@ -1221,7 +1241,7 @@ plt.show()
 
 ### 4.7.2. Índices de sequía basados en precipitaciones estimadas usando el producto CHIRPS
 
-Este servicio permite consultar valores del índice de sequía SPI calculado en base a precipitaciones estimadas por el producto CHIRPS [21]. El servicio devuelve a) valores de SPI-ET y b) percentiles de precipitación acumulada para la escala temporal "ET". En ambos casos los valores devueltos están disponibles para escalas temporales de 3, 6 y 12 meses. En la actualidad, los valores están disponibles para períodos que finalicen entre el 2017-01-01 y la actualidad (por ejemplo el primer período para el cual el SPI-3 está disponible es el comprendido entre 2016-10-06 al 2017-01-05). Se proveen datos para cualquier aŕea incluida dentro del CRC-SAS, la cual debe especificarse en formato GeoJSON [17]. Para limitar el volumen de datos a transferir por medio del servicio, el área de la zona especificada no debe exceder los 200.000 km^2^.
+Este servicio permite consultar valores del índice de sequía SPI calculado en base a precipitaciones estimadas por el producto CHIRPS [21]. El servicio devuelve a) valores de SPI-ET y b) percentiles de precipitación acumulada para la escala temporal "ET". En ambos casos los valores devueltos están disponibles para escalas temporales de 3, 6 y 12 meses. En la actualidad, los valores están disponibles para períodos que finalicen entre el 2017-01-01 y la actualidad (por ejemplo el primer período para el cual el SPI-3 está disponible es el comprendido entre 2016-10-06 al 2017-01-05). Se proveen datos para cualquier aŕea incluida dentro del CRC-SAS, la cual debe especificarse en formato GeoJSON [17]. Para limitar el volumen de datos a transferir por medio del servicio, el área de la zona especificada no debe exceder los 2.000.000 km^2^.
 
 El servicio devuelve como respuesta un stream de datos binarios correspondiente a un archivo de formato NetCDF [18]. Dicho archivo NetCDF tiene la siguiente estructura de dimensiones y variables:
 
@@ -1279,7 +1299,7 @@ _ = figure.suptitle('SPI-3 basado en CHIRPS para Paysandú y Durazno (Uruguay)\n
 
 for ax, fecha, raster in zip(figure.get_axes(), fechas, rasters):
     __ = ax.set_title(fecha.strftime("%b %d, %Y")), ax.set_xticks([]), ax.set_yticks([])
-    im = ax.imshow(raster if len(fechas) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
+    im = ax.imshow(raster, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
 
 _ = figure.colorbar(im, ax=figure.get_axes())
 
@@ -1289,6 +1309,149 @@ plt.show()
 
 
 ![svg](apidoc_files/apidoc_56_0.svg)
+
+
+### 4.7.3. Pronósticos de precipitación y sequía a 15 días usando el producto CHIRPS-GEFS
+
+La evolución esperada de la sequía en las próximas dos semanas se basa en un pronóstico de lluvias para los proximos 15 días generado por el Climate Hazards Center de los Estados Unidos, la misma institución que genera los campos de precipitación CHIRPS. El pronóstico está basado en el modelo numérico Global Ensemble Forecast System o GEFS (https://www.esrl.noaa.gov/psd/forecasts/reforecast2/) desarrollado por el Centro Nacional de Predicción Ambiental (NCEP, por sus siglas en inglés de los Estados Unidos) a través del modelo Global Ensemble Forecast System o GEFS. El Climate Hazards Center realiza un proceso de calibración (o remoción del sesgo) en los valores pronosticados [22].
+
+A partir de esta información de pronósticos para 15 días (o 3 péntadas en términos del producto CHIRPS), se construye en ensamble de capas de datos considerando 15 péntadas de datos observados (2 meses y medio) y las 3 péntadas pronosticadas. Este ensamble constituye una capa de 18 péntadas de precipitaciones las cuales son acumuladas con el fin de calcular valores de SPI-3 y percentiles de precipitación acumulada del mismo modo que se realiza para el producto CHIRPS.
+
+El servicio permite consultar a) valores de precipitación pronosticada, b) ensamble de precipitación acumulada observada/pronosticada, c) valores de SPI y d) percentiles de precipitación acumulada para la escala temporal de 3 meses. Se proveen datos para cualquier aŕea incluida dentro del CRC-SAS, la cual debe especificarse en formato GeoJSON [17]. Para limitar el volumen de datos a transferir por medio del servicio, el área de la zona especificada no debe exceder los 2.000.000 km^2^.
+
+El servicio devuelve como respuesta un stream de datos binarios correspondiente a un archivo de formato NetCDF [18]. Dicho archivo NetCDF tiene la siguiente estructura de dimensiones y variables:
+
+  * Sistema de coordenadas: 
+    * Latitud/Longitud: sistema de coordenadas expresadas en grados decimales;
+    * String de proyección: +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0;
+    * Código EPSG: 4326.
+  * Dimensiones: 
+    * longitude: coordenada X (o longitud) expresada en grados decimales;
+    * latitude: coordenada Y (o latitud) expresada en grados decimales;
+    * time: cantidad de días desde el 1 de Enero de 1970 (día 0); corresponde a la fecha de inicio de la péntada o mes asociado a la capa de datos.
+  * Variables: 
+    * forecasted_total | total | spi | percentile: valor de precipitación pronosticada a 15 días (forecasted_total), ensamble de precipitación acumulada observada/pronosticada (total), índice SPI (spi) o percentil asociado, para la escala temporal especificada (percentile).
+    
+Con el propósito de facilitar la manipulación de los datos devueltos (que requiere conocimiento sobre archivos NetCDF), se recomienda enfáticamente utilizar la función *ConsumirServicioEspacial* provista al inicio del documento. Esta función permite invocar el servicio y obtener directamente un objeto de tipo *raster* [19].
+
+*Ruta*: /chirps/pronostico/{producto:string}/{escala:int}/{fecha_desde:date}/{fecha_hasta:date}
+
+*Método*: POST
+
+*Parámetros*: 
+
+  * producto: { forecasted_total = valor de precipitación pronosticada a 15 días, total = ensamble de precipitación acumulada observada/pronosticada, spi = índice SPI, percentile = percentil asociado, para la escala temporal especificada };
+  * escala: escala temporal "ET" de agregación (por el momento solamente 3 meses);
+  * fecha_desde: fecha de inicio del período a consultar (en formato ISO-8601 [20]); 
+  * fecha_hasta: fecha de fin del período a consultar (en formato ISO-8601 [20]).
+  
+*Parámetros del cuerpo del request*:
+  
+  * zona.geojson: string de formato GeoJSON que representa la zona sobre la cual se efectuará la consulta.
+  
+*Respuesta*: Stream binario correspondiente a un archivo NetCDF (ver descripción en párrafos anteriores).
+
+*Ejemplo*:
+
+
+``` python
+# Buscar pronosticado de lluvias a 15 días usando CHIRPS-GEFS 
+# para Mayo de 2020 (departamentos de Paysandú y Durazno (UY).
+fecha_desde     = dateutil.parser.parse("2020-05-01").isoformat()
+fecha_hasta     = dateutil.parser.parse("2020-05-31").isoformat()
+url_chirps      = f"{base_url}/chirps/pronostico/forecasted_total/3/{fecha_desde}/{fecha_hasta}"
+zona_geojson    = os.getcwd() + "/data/ZonasEjemplo.geojson"
+fechas, rasters = consumir_servicio_espacial(url=url_chirps, usuario=usuario_default, clave=clave_default,
+                                            archivo_geojson_zona=zona_geojson, raster_var_tag='forecasted_total')
+                                                     
+# Graficar rasters de CHIRPS
+figure, axes = plt.subplots(nrows=math.ceil(len(fechas)/2), ncols=1+(1%len(fechas)), 
+                            constrained_layout=True)
+_ = figure.suptitle('Totales de precipitación a 15 días basados en CHIRPS-GEFS\n'
+                    'Valores correspondientes a Mayo de 2020 (Paysandú y Durazno - Uruguay)')
+
+for ax, fecha, raster in zip(figure.get_axes(), fechas, rasters):
+    __ = ax.set_title(fecha.strftime("%b %d, %Y")), ax.set_xticks([]), ax.set_yticks([])
+    im = ax.imshow(raster if len(fechas) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
+
+_ = figure.colorbar(im, ax=figure.get_axes())
+
+plt.show()
+```
+
+
+![svg](apidoc_files/apidoc_58_0.svg)
+
+
+## 4.8. Índice de Stress Evaporativo (ESI) y percentiles derivados
+
+El Índice de Estrés Evaporativo (o, en adelante, ESI por sus siglas en inglés) identifica regiones donde la vegetación está sufriendo estrés por falta de agua. El ESI se produce semanalmente con una resolución espacial de aproximadamente 5x5 km y cubre todo el globo. Este producto describe la humedad del suelo en todo el paisaje sin utilizar datos de lluvia observados. Esto es fundamental en las regiones en desarrollo y otras partes del mundo que carecen de suficientes observaciones terrestres de las precipitaciones. Al no utilizar datos de lluvias, el ESI es útil para estudiar cómo los cultivos responden al riego. 
+
+El ESI es especialmente útil para predecir un fenómeno llamado *sequías repentinas* (o *flash droughts*). A diferencia de las sequías típicas que pueden tardar meses o años en desarrollarse, las sequías repentinas ocurren mucho más repentinamente y pueden dañar los cultivos en cuestión de semanas, mucho antes de que el estrés cause signos visibles de daño. Las *sequías repentinas* generalmente son provocadas por períodos prolongados de condiciones cálidas, secas y ventosas que agotan rápidamente la humedad del suelo. La ocurrencia de tasas reducidas de pérdida de agua por evapotranspiracion puede estimarse mediante el uso de la temperatura de la superficie de la tierra antes de que estas pérdidas se reflejen en disminuciones en la salud o *verdor* de la vegetación (por ejemplo los índices de vegetación NDVI o EVI) [22].
+
+Este servicio permite consultar valores de ESI y los percentiles asociados calculados en base al período de referencia 2002-2019. El servicio devuelve a) valores de ESI y b) percentiles de ESI para la escala temporal "ET". En ambos casos los valores devueltos están disponibles para escalas temporales de 4 y 12 semanas. Se proveen datos para cualquier aŕea incluida dentro del CRC-SAS, la cual debe especificarse en formato GeoJSON [17]. Para limitar el volumen de datos a transferir por medio del servicio, el área de la zona especificada no debe exceder los 2.000.000 km^2^.
+
+El servicio devuelve como respuesta un stream de datos binarios correspondiente a un archivo de formato NetCDF [18]. Dicho archivo NetCDF tiene la siguiente estructura de dimensiones y variables:
+
+  * Sistema de coordenadas: 
+    * Latitud/Longitud: sistema de coordenadas expresadas en grados decimales;
+    * String de proyección: +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0;
+    * Código EPSG: 4326.
+  * Dimensiones: 
+    * longitude: coordenada X (o longitud) expresada en grados decimales;
+    * latitude: coordenada Y (o latitud) expresada en grados decimales;
+    * time: cantidad de días desde el 1 de Enero de 1970 (día 0); corresponde a la fecha de inicio de la péntada o mes asociado a la capa de datos.
+  * Variables: 
+    * esi | percentiles: valor de índice ESI o percentil asociado, para la escala temporal especificada.
+    
+Con el propósito de facilitar la manipulación de los datos devueltos (que requiere conocimiento sobre archivos NetCDF), se recomienda enfáticamente utilizar la función *ConsumirServicioEspacial* provista al inicio del documento. Esta función permite invocar el servicio y obtener directamente un objeto de tipo *raster* [19].
+
+*Ruta*: /esi/{producto:string}/{escala:string}/{fecha_desde:date}/{fecha_hasta:date}
+
+*Método*: POST
+
+*Parámetros*: 
+
+  * producto: { esi = índice ESI, percentiles = percentils asociado índice ESI };
+  * escala: escala temporal "ET" de agregación del ESI o percentiles { 4WK = 4 semanas, 12WK = 12 semanas };
+  * fecha_desde: fecha de inicio del período a consultar (en formato ISO-8601 [20]); 
+  * fecha_hasta: fecha de fin del período a consultar (en formato ISO-8601 [20]).
+  
+*Parámetros del cuerpo del request*:
+  
+  * zona.geojson: string de formato GeoJSON que representa la zona sobre la cual se efectuará la consulta.
+  
+*Respuesta*: Stream binario correspondiente a un archivo NetCDF (ver descripción en párrafos anteriores).
+
+*Ejemplo*:
+
+
+``` python
+# Buscar ESI con escala temporal de 4 semanas para Enero de 2019 (departamentos de Paysandú y Durazno (UY)).
+fecha_desde     = dateutil.parser.parse("2019-01-01").isoformat()
+fecha_hasta     = dateutil.parser.parse("2019-01-31").isoformat()
+url_esi         = f"{base_url}/esi/esi/4WK/{fecha_desde}/{fecha_hasta}"
+zona_geojson    = os.getcwd() + "/data/ZonasEjemplo.geojson"
+fechas, rasters = consumir_servicio_espacial(url=url_esi, usuario=usuario_default, clave=clave_default,
+                                            archivo_geojson_zona=zona_geojson, raster_var_tag='esi')
+                                                     
+# Graficar rasters de ESI
+figure, axes = plt.subplots(nrows=math.ceil(len(fechas)/2), ncols=1+(1%len(fechas)), 
+                            constrained_layout=True)
+_ = figure.suptitle('Índice de Stress Evaporativo (ESI) para Paysandú y Durazno (Uruguay)\n'
+                    'Valores para escala temporal de 4 semanas (Enero de 2019)')
+
+for ax, fecha, raster in zip(figure.get_axes(), fechas, rasters):
+    __ = ax.set_title(fecha.strftime("%b %d, %Y")), ax.set_xticks([]), ax.set_yticks([])
+    im = ax.imshow(raster if len(fechas) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
+
+_ = figure.colorbar(im, ax=figure.get_axes())
+
+plt.show()
+```
+
+
+![svg](apidoc_files/apidoc_60_0.svg)
 
 
 # Referencias
@@ -1335,4 +1498,8 @@ plt.show()
 [20]  https://www.iso.org/standard/70907.html
 
 [21]	https://www.chc.ucsb.edu/data/chirps
+
+[22]  https://chc.ucsb.edu/data/chirps-gefs
+
+[23]  https://sissa.crc-sas.org/monitoreo/indice-de-estres-evaporativo
 
