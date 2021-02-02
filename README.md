@@ -5,7 +5,7 @@
 #### Daniel Bonhaure (danielbonhaure@gmail.com)
 #### Santiago Rovere (srovere@gmail.com)
 #### Guillermo Podestá (gpodesta@rsmas.miami.edu)
-#### *09 de diciembre de 2020*
+#### *01 de febrero de 2021*
 
 
 # 1. Introducción
@@ -150,6 +150,19 @@ def consumir_servicio_espacial(url, usuario, clave, archivo_geojson_zona, raster
     archivo_nc.close()
 
     return nc_fechas, nc_rasters  # los rasters se devuelven como variables netcdf
+
+# Función para acceder a un servicio web definido por una URL utilizando un usuario y clave.
+# Se envía un archivo GeoJSON para realizar la consulta en puntos o un área determinada.
+# La respuesta se devuelve con un Data Frame.
+def consumir_servicio_espacial_serie_temporal(url, usuario, clave, archivo_geojson_zona):
+    # a. Obtener datos y guardarlos en un archivo temporal
+    zona_geojson = pathlib.Path(archivo_geojson_zona).read_text()
+    respuesta = consumir_servicio_POST(url, usuario, clave, json.dumps({'zona.geojson': zona_geojson}))
+
+    # b. Leer respuesta y crear un dataframe
+    datosJSON = respuesta.json()
+    return pandas.io.json.json_normalize(datosJSON)
+
 ```
 
 Además, a efecto de poder probar los ejemplos de esta documentación, se definen las siguientes variables (los datos de usuario y clave se encuentran ocultos por cuestiones de seguridad y deberán ser solicitados a las instituciones miembros del CRC-SAS):
@@ -916,7 +929,7 @@ print(spi_3_ultimo.to_markdown(tablefmt="github", showindex=False))
 
 |   indice_configuracion_id |   omm_id |   pentada_fin |   ano |   metodo_imputacion_id |   valor_dato |   valor_indice |   percentil_dato |
 |---------------------------|----------|---------------|-------|------------------------|--------------|----------------|------------------|
-|                        43 |    87544 |            24 |  2020 |                      0 |        427.2 |         0.7767 |          78.1324 |
+|                        43 |    87544 |             6 |  2021 |                      0 |        187.8 |        -1.6995 |           4.4617 |
 
 
 ### 4.4.3. Parámetros y otros valores resultantes del ajuste de distribuciones
@@ -1169,6 +1182,202 @@ plt.show()
 ![svg](apidoc_files/apidoc_51_0.svg)
 
 
+Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
+
+Los puntos o polígonos deben especificarse en formato GeoJSON [17]. Además, cada punto o polígono debe tener asociado al menos un atributo para que el servicio pueda devolver una respuesta en la cual se puedan identificar cada una de las geometrías (puntos o polígonos). Por ejemplo, en caso de que los polígonos correspondan a localidades, el archivo GeoJSON podría contener atributos indicando el código de localidad o su nombre. Para el caso de los puntos, se podría indicar un nombre asociado a cada una de las ubicaciones, un código o los atributos que el usuario desee agregar.
+
+*Ruta*: /indices_vegatacion/serie_temporal/{indice}/{fecha_desde:date}/{fecha_hasta:date}
+
+*Método*: POST
+
+*Parámetros*: 
+
+  * indice: índice de vegetación a consultar (ndvi o evi); 
+  * fecha_desde: fecha de inicio del período a consultar (en formato ISO-8601 [20]); 
+  * fecha_hasta: fecha de fin del período a consultar (en formato ISO-8601 [20]).
+  
+*Parámetros del cuerpo del request*:
+  
+  * zona.geojson: string de formato GeoJSON que representa los puntos o polígonos sobre los cuales se efectuará la consulta.
+  
+*Respuesta*:
+  
+El servicio devuelve una respuesta en formato JSON, la cual puede convertirse a un formato tabular. La respuesta contiene los datos provistos por el usuario para cada una de las geometrías y los siguientes campos, según el usuario haya especificado puntos o polígonos:
+
+[
+  {
+    ...
+    <atributos provistos por el usuario para cada punto o polígono>
+    ...,
+    estadístico: string (solamente para el caso de polígonos, ver detalle a continuación),
+    fecha: date (fecha dentro del rango de fechas especificadas por el usuario),
+    valor: float (valor asociado al punto o polígono para la fecha especificada - y al estadístico en el caso de polígonos)
+  }
+]
+
+Los estadísticos devueltos para el caso de las consultas asociadas a los polígonos se codifican de la siguiente manera:
+
+  * 0%: mínimo valor dentro del polígono
+  * 25%: percentil 25 de los valores dentro del polígono
+  * 50%: mediana de los valores dentro del polígono
+  * 75%: percentil 75 de los valores dentro del polígono
+  * 100%: máximo valor dentro del polígono
+  * Media: media de los valores dentro del polígono
+  * Desvio: desvío estándar de los valores dentro del polígono
+  * MAD: desvío mediano absoluto de los valores dentro del polígono
+  
+A continuación se presentan dos ejemplos: una consulta para puntos y otra para polígonos. Para la consulta basada en puntos, cada uno de ellos tiene asociado un nombre que identifica la ubicación. Para el caso de los polígonos, cada uno de ellos tiene asociado un nombre que representa una provincia de Argentina. Se presenta primero el ejemplo para ubicaciones puntuales.
+
+
+``` python
+# Buscar NDVI para Enero de 2019 en 4 ubicaciones puntuales
+fecha_desde = dateutil.parser.parse("2019-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2019-01-31").isoformat()
+url_modis = f"{base_url}/indices_vegetacion/serie_temporal/ndvi/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PuntosEjemplo.geojson" 
+datos_ndvi = consumir_servicio_espacial_serie_temporal(url=url_modis,
+                                                       usuario=usuario_default, clave=clave_default,
+                                                       archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(datos_ndvi.to_markdown(tablefmt="github", showindex=False))
+```
+
+| nombre   | fecha      |   valor |
+|----------|------------|---------|
+| Lugar 1  | 2019-01-01 |  0.7364 |
+| Lugar 1  | 2019-01-09 |  0.7958 |
+| Lugar 1  | 2019-01-17 |  0.8067 |
+| Lugar 1  | 2019-01-25 |  0.8348 |
+| Lugar 2  | 2019-01-01 |  0.6335 |
+| Lugar 2  | 2019-01-09 |  0.8109 |
+| Lugar 2  | 2019-01-17 |  0.845  |
+| Lugar 2  | 2019-01-25 |  0.8975 |
+| Lugar 3  | 2019-01-01 |  0.6556 |
+| Lugar 3  | 2019-01-09 |  0.6808 |
+| Lugar 3  | 2019-01-17 |  0.6767 |
+| Lugar 3  | 2019-01-25 |  0.7233 |
+| Lugar 4  | 2019-01-01 |  0.5909 |
+| Lugar 4  | 2019-01-09 |  0.6446 |
+| Lugar 4  | 2019-01-17 |  0.6674 |
+| Lugar 4  | 2019-01-25 |  0.6883 |
+
+
+Finalmente, se presenta un ejemplo para 3 polígonos correspondientes a zonas dentro de provincias argentinas (Buenos Aires, Santa Fe y Córdoba).
+
+
+``` python
+# Buscar NDVI para la primera quincena de Enero de 2019 en 3 provincias puntuales
+fecha_desde = dateutil.parser.parse("2019-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2019-01-31").isoformat()
+url_modis = f"{base_url}/indices_vegetacion/serie_temporal/ndvi/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PoligonosEjemplo.geojson" 
+datos_ndvi = consumir_servicio_espacial_serie_temporal(url=url_modis,
+                                                       usuario=usuario_default, clave=clave_default,
+                                                       archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(datos_ndvi.to_markdown(tablefmt="github", showindex=False))
+```
+
+| nombre       | estadistico   | fecha      |   valor |
+|--------------|---------------|------------|---------|
+| Buenos Aires | 0%            | 2019-01-01 |  0.0161 |
+| Buenos Aires | 25%           | 2019-01-01 |  0.6263 |
+| Buenos Aires | 50%           | 2019-01-01 |  0.6876 |
+| Buenos Aires | 75%           | 2019-01-01 |  0.7403 |
+| Buenos Aires | 100%          | 2019-01-01 |  0.9223 |
+| Buenos Aires | Media         | 2019-01-01 |  0.6753 |
+| Buenos Aires | Desvio        | 2019-01-01 |  0.0987 |
+| Buenos Aires | MAD           | 2019-01-01 |  0.0835 |
+| Buenos Aires | 0%            | 2019-01-09 | -0.1545 |
+| Buenos Aires | 25%           | 2019-01-09 |  0.6678 |
+| Buenos Aires | 50%           | 2019-01-09 |  0.7245 |
+| Buenos Aires | 75%           | 2019-01-09 |  0.7758 |
+| Buenos Aires | 100%          | 2019-01-09 |  0.9213 |
+| Buenos Aires | Media         | 2019-01-09 |  0.7133 |
+| Buenos Aires | Desvio        | 2019-01-09 |  0.0965 |
+| Buenos Aires | MAD           | 2019-01-09 |  0.08   |
+| Buenos Aires | 0%            | 2019-01-17 | -0.0072 |
+| Buenos Aires | 25%           | 2019-01-17 |  0.6915 |
+| Buenos Aires | 50%           | 2019-01-17 |  0.7436 |
+| Buenos Aires | 75%           | 2019-01-17 |  0.7919 |
+| Buenos Aires | 100%          | 2019-01-17 |  0.934  |
+| Buenos Aires | Media         | 2019-01-17 |  0.7332 |
+| Buenos Aires | Desvio        | 2019-01-17 |  0.0911 |
+| Buenos Aires | MAD           | 2019-01-17 |  0.0742 |
+| Buenos Aires | 0%            | 2019-01-25 | -0.1553 |
+| Buenos Aires | 25%           | 2019-01-25 |  0.7318 |
+| Buenos Aires | 50%           | 2019-01-25 |  0.7803 |
+| Buenos Aires | 75%           | 2019-01-25 |  0.8227 |
+| Buenos Aires | 100%          | 2019-01-25 |  0.9324 |
+| Buenos Aires | Media         | 2019-01-25 |  0.7682 |
+| Buenos Aires | Desvio        | 2019-01-25 |  0.0896 |
+| Buenos Aires | MAD           | 2019-01-25 |  0.067  |
+| Cordoba      | 0%            | 2019-01-01 | -0.1411 |
+| Cordoba      | 25%           | 2019-01-01 |  0.5256 |
+| Cordoba      | 50%           | 2019-01-01 |  0.6133 |
+| Cordoba      | 75%           | 2019-01-01 |  0.7165 |
+| Cordoba      | 100%          | 2019-01-01 |  0.9243 |
+| Cordoba      | Media         | 2019-01-01 |  0.6191 |
+| Cordoba      | Desvio        | 2019-01-01 |  0.128  |
+| Cordoba      | MAD           | 2019-01-01 |  0.1402 |
+| Cordoba      | 0%            | 2019-01-09 | -0.0588 |
+| Cordoba      | 25%           | 2019-01-09 |  0.6085 |
+| Cordoba      | 50%           | 2019-01-09 |  0.7056 |
+| Cordoba      | 75%           | 2019-01-09 |  0.7829 |
+| Cordoba      | 100%          | 2019-01-09 |  0.9362 |
+| Cordoba      | Media         | 2019-01-09 |  0.6902 |
+| Cordoba      | Desvio        | 2019-01-09 |  0.1195 |
+| Cordoba      | MAD           | 2019-01-09 |  0.1261 |
+| Cordoba      | 0%            | 2019-01-17 | -0.0822 |
+| Cordoba      | 25%           | 2019-01-17 |  0.6421 |
+| Cordoba      | 50%           | 2019-01-17 |  0.7395 |
+| Cordoba      | 75%           | 2019-01-17 |  0.8102 |
+| Cordoba      | 100%          | 2019-01-17 |  0.949  |
+| Cordoba      | Media         | 2019-01-17 |  0.7196 |
+| Cordoba      | Desvio        | 2019-01-17 |  0.1138 |
+| Cordoba      | MAD           | 2019-01-17 |  0.1184 |
+| Cordoba      | 0%            | 2019-01-25 | -0.0735 |
+| Cordoba      | 25%           | 2019-01-25 |  0.6887 |
+| Cordoba      | 50%           | 2019-01-25 |  0.7941 |
+| Cordoba      | 75%           | 2019-01-25 |  0.857  |
+| Cordoba      | 100%          | 2019-01-25 |  0.9497 |
+| Cordoba      | Media         | 2019-01-25 |  0.7618 |
+| Cordoba      | Desvio        | 2019-01-25 |  0.1198 |
+| Cordoba      | MAD           | 2019-01-25 |  0.111  |
+| Uruguay      | 0%            | 2019-01-01 | -0.169  |
+| Uruguay      | 25%           | 2019-01-01 |  0.643  |
+| Uruguay      | 50%           | 2019-01-01 |  0.688  |
+| Uruguay      | 75%           | 2019-01-01 |  0.7278 |
+| Uruguay      | 100%          | 2019-01-01 |  0.8817 |
+| Uruguay      | Media         | 2019-01-01 |  0.6724 |
+| Uruguay      | Desvio        | 2019-01-01 |  0.1074 |
+| Uruguay      | MAD           | 2019-01-01 |  0.0623 |
+| Uruguay      | 0%            | 2019-01-09 | -0.1945 |
+| Uruguay      | 25%           | 2019-01-09 |  0.6291 |
+| Uruguay      | 50%           | 2019-01-09 |  0.666  |
+| Uruguay      | 75%           | 2019-01-09 |  0.6996 |
+| Uruguay      | 100%          | 2019-01-09 |  0.8687 |
+| Uruguay      | Media         | 2019-01-09 |  0.657  |
+| Uruguay      | Desvio        | 2019-01-09 |  0.0912 |
+| Uruguay      | MAD           | 2019-01-09 |  0.0517 |
+| Uruguay      | 0%            | 2019-01-17 | -0.1625 |
+| Uruguay      | 25%           | 2019-01-17 |  0.6767 |
+| Uruguay      | 50%           | 2019-01-17 |  0.7103 |
+| Uruguay      | 75%           | 2019-01-17 |  0.7444 |
+| Uruguay      | 100%          | 2019-01-17 |  0.909  |
+| Uruguay      | Media         | 2019-01-17 |  0.7012 |
+| Uruguay      | Desvio        | 2019-01-17 |  0.0934 |
+| Uruguay      | MAD           | 2019-01-17 |  0.0501 |
+| Uruguay      | 0%            | 2019-01-25 | -0.1982 |
+| Uruguay      | 25%           | 2019-01-25 |  0.7117 |
+| Uruguay      | 50%           | 2019-01-25 |  0.7631 |
+| Uruguay      | 75%           | 2019-01-25 |  0.7957 |
+| Uruguay      | 100%          | 2019-01-25 |  0.9119 |
+| Uruguay      | Media         | 2019-01-25 |  0.741  |
+| Uruguay      | Desvio        | 2019-01-25 |  0.1067 |
+| Uruguay      | MAD           | 2019-01-25 |  0.0587 |
+
+
 ## 4.7. Precipitaciones estimadas por el producto CHIRPS
 
 ### 4.7.1. Totales de precipitación por péntada y por mes
@@ -1236,7 +1445,119 @@ plt.show()
 ```
 
 
-![svg](apidoc_files/apidoc_54_0.svg)
+![svg](apidoc_files/apidoc_58_0.svg)
+
+
+Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
+
+Los puntos o polígonos deben especificarse en formato GeoJSON [17]. Además, cada punto o polígono debe tener asociado al menos un atributo para que el servicio pueda devolver una respuesta en la cual se puedan identificar cada una de las geometrías (puntos o polígonos). Por ejemplo, en caso de que los polígonos correspondan a localidades, el archivo GeoJSON podría contener atributos indicando el código de localidad o su nombre. Para el caso de los puntos, se podría indicar un nombre asociado a cada una de las ubicaciones, un código o los atributos que el usuario desee agregar.
+
+*Ruta*: /chirps/serie_temporal/{periodo}/{fecha_desde:date}/{fecha_hasta:date}
+
+*Método*: POST
+
+*Parámetros*: 
+
+  * periodo: período de agregación temporal de los datos (P: péntadas o M: mes); 
+  * fecha_desde: fecha de inicio del período a consultar (en formato ISO-8601 [20]); 
+  * fecha_hasta: fecha de fin del período a consultar (en formato ISO-8601 [20]).
+  
+*Parámetros del cuerpo del request*:
+  
+  * zona.geojson: string de formato GeoJSON que representa los puntos o polígonos sobre los cuales se efectuará la consulta.
+  
+*Respuesta*:
+  
+El servicio devuelve una respuesta en formato JSON, la cual puede convertirse a un formato tabular. La respuesta contiene los datos provistos por el usuario para cada una de las geometrías y los siguientes campos, según el usuario haya especificado puntos o polígonos:
+
+[
+  {
+    ...
+    <atributos provistos por el usuario para cada punto o polígono>
+    ...,
+    estadístico: string (solamente para el caso de polígonos, ver detalle a continuación),
+    fecha: date (fecha dentro del rango de fechas especificadas por el usuario),
+    valor: float (valor asociado al punto o polígono para la fecha especificada - y al estadístico en el caso de polígonos)
+  }
+]
+
+Los estadísticos devueltos para el caso de las consultas asociadas a los polígonos se codifican de la siguiente manera:
+
+  * 0%: mínimo valor dentro del polígono
+  * 25%: percentil 25 de los valores dentro del polígono
+  * 50%: mediana de los valores dentro del polígono
+  * 75%: percentil 75 de los valores dentro del polígono
+  * 100%: máximo valor dentro del polígono
+  * Media: media de los valores dentro del polígono
+  * Desvio: desvío estándar de los valores dentro del polígono
+  * MAD: desvío mediano absoluto de los valores dentro del polígono
+  
+A continuación se presentan dos ejemplos: una consulta para puntos y otra para polígonos. Para la consulta basada en puntos, cada uno de ellos tiene asociado un nombre que identifica la ubicación. Para el caso de los polígonos, cada uno de ellos tiene asociado un nombre que representa una provincia de Argentina. Se presenta primero el ejemplo para ubicaciones puntuales.
+
+
+``` python
+# Buscar precipitación acumulada mensual para el primer trimestre de 2019 en 4 ubicaciones puntuales
+fecha_desde = dateutil.parser.parse("2019-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2019-01-31").isoformat()
+url_chirps = f"{base_url}/chirps/serie_temporal/M/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PuntosEjemplo.geojson" 
+datos_prcp = consumir_servicio_espacial_serie_temporal(url=url_chirps,
+                                                       usuario=usuario_default, clave=clave_default,
+                                                       archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(datos_prcp.to_markdown(tablefmt="github", showindex=False))
+```
+
+| nombre   | fecha      |   valor |
+|----------|------------|---------|
+| Lugar 1  | 2019-01-01 | 224.75  |
+| Lugar 2  | 2019-01-01 | 157.652 |
+| Lugar 3  | 2019-01-01 | 297.594 |
+| Lugar 4  | 2019-01-01 | 136.782 |
+
+
+Finalmente, se presenta un ejemplo para 3 polígonos correspondientes a zonas dentro de provincias argentinas (Buenos Aires, Santa Fe y Córdoba).
+
+
+``` python
+# Buscar precipitación acumulada mensual para el primer bimestre de 2019 en 3 provincias Argentinas
+fecha_desde = dateutil.parser.parse("2019-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2019-01-31").isoformat()
+url_chirps = f"{base_url}/chirps/serie_temporal/M/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PoligonosEjemplo.geojson" 
+datos_prcp = consumir_servicio_espacial_serie_temporal(url=url_chirps,
+                                                       usuario=usuario_default, clave=clave_default,
+                                                       archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(datos_prcp.to_markdown(tablefmt="github", showindex=False))
+```
+
+| nombre       | estadistico   | fecha      |    valor |
+|--------------|---------------|------------|----------|
+| Buenos Aires | 0%            | 2019-01-01 | 173.069  |
+| Buenos Aires | 25%           | 2019-01-01 | 192.703  |
+| Buenos Aires | 50%           | 2019-01-01 | 199.976  |
+| Buenos Aires | 75%           | 2019-01-01 | 213.994  |
+| Buenos Aires | 100%          | 2019-01-01 | 267.478  |
+| Buenos Aires | Media         | 2019-01-01 | 204.908  |
+| Buenos Aires | Desvio        | 2019-01-01 |  17.532  |
+| Buenos Aires | MAD           | 2019-01-01 |  13.5045 |
+| Cordoba      | 0%            | 2019-01-01 | 104.262  |
+| Cordoba      | 25%           | 2019-01-01 | 141.151  |
+| Cordoba      | 50%           | 2019-01-01 | 162.954  |
+| Cordoba      | 75%           | 2019-01-01 | 182.12   |
+| Cordoba      | 100%          | 2019-01-01 | 256.618  |
+| Cordoba      | Media         | 2019-01-01 | 166.119  |
+| Cordoba      | Desvio        | 2019-01-01 |  33.4216 |
+| Cordoba      | MAD           | 2019-01-01 |  31.4784 |
+| Uruguay      | 0%            | 2019-01-01 | 249.794  |
+| Uruguay      | 25%           | 2019-01-01 | 292.154  |
+| Uruguay      | 50%           | 2019-01-01 | 305.541  |
+| Uruguay      | 75%           | 2019-01-01 | 318.288  |
+| Uruguay      | 100%          | 2019-01-01 | 372.747  |
+| Uruguay      | Media         | 2019-01-01 | 304.68   |
+| Uruguay      | Desvio        | 2019-01-01 |  20.1602 |
+| Uruguay      | MAD           | 2019-01-01 |  19.6277 |
 
 
 ### 4.7.2. Índices de sequía basados en precipitaciones estimadas usando el producto CHIRPS
@@ -1308,7 +1629,260 @@ plt.show()
 ```
 
 
-![svg](apidoc_files/apidoc_56_0.svg)
+![svg](apidoc_files/apidoc_64_0.svg)
+
+
+Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
+
+Los puntos o polígonos deben especificarse en formato GeoJSON [17]. Además, cada punto o polígono debe tener asociado al menos un atributo para que el servicio pueda devolver una respuesta en la cual se puedan identificar cada una de las geometrías (puntos o polígonos). Por ejemplo, en caso de que los polígonos correspondan a localidades, el archivo GeoJSON podría contener atributos indicando el código de localidad o su nombre. Para el caso de los puntos, se podría indicar un nombre asociado a cada una de las ubicaciones, un código o los atributos que el usuario desee agregar.
+
+*Ruta*: /chirps/serie_temporal/{producto:string}/{escala:int}/{fecha_desde:date}/{fecha_hasta:date}
+
+*Método*: POST
+
+*Parámetros*: 
+
+  * producto: { spi = SPI, percentile = percentil asociado al monto de precipitaciones acumuladas en el período };
+  * escala: escala temporal "ET" de agregación (en meses; 3, 6 o 12) del índice de sequía SPI o percentil;
+  * fecha_desde: fecha de inicio del período a consultar (en formato ISO-8601 [20]); 
+  * fecha_hasta: fecha de fin del período a consultar (en formato ISO-8601 [20]).
+  
+*Parámetros del cuerpo del request*:
+  
+  * zona.geojson: string de formato GeoJSON que representa los puntos o polígonos sobre los cuales se efectuará la consulta.
+  
+*Respuesta*:
+  
+El servicio devuelve una respuesta en formato JSON, la cual puede convertirse a un formato tabular. La respuesta contiene los datos provistos por el usuario para cada una de las geometrías y los siguientes campos, según el usuario haya especificado puntos o polígonos:
+
+[
+  {
+    ...
+    <atributos provistos por el usuario para cada punto o polígono>
+    ...,
+    estadístico: string (solamente para el caso de polígonos, ver detalle a continuación),
+    fecha: date (fecha dentro del rango de fechas especificadas por el usuario),
+    valor: float (valor asociado al punto o polígono para la fecha especificada - y al estadístico en el caso de polígonos)
+  }
+]
+
+Los estadísticos devueltos para el caso de las consultas asociadas a los polígonos se codifican de la siguiente manera:
+
+  * 0%: mínimo valor dentro del polígono
+  * 25%: percentil 25 de los valores dentro del polígono
+  * 50%: mediana de los valores dentro del polígono
+  * 75%: percentil 75 de los valores dentro del polígono
+  * 100%: máximo valor dentro del polígono
+  * Media: media de los valores dentro del polígono
+  * Desvio: desvío estándar de los valores dentro del polígono
+  * MAD: desvío mediano absoluto de los valores dentro del polígono
+  
+A continuación se presentan dos ejemplos: una consulta para puntos y otra para polígonos. Para la consulta basada en puntos, cada uno de ellos tiene asociado un nombre que identifica la ubicación. Para el caso de los polígonos, cada uno de ellos tiene asociado un nombre que representa una provincia de Argentina. Se presenta primero el ejemplo para ubicaciones puntuales.
+
+
+``` python
+# Buscar SPI-3 para las primeras 3 péntadas de Enero de 2019 en 4 ubicaciones puntuales
+fecha_desde = dateutil.parser.parse("2019-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2019-01-31").isoformat()
+url_chirps = f"{base_url}/chirps/serie_temporal/spi/3/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PuntosEjemplo.geojson" 
+datos_spi3 = consumir_servicio_espacial_serie_temporal(url=url_chirps,
+                                                       usuario=usuario_default, clave=clave_default,
+                                                       archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(datos_spi3.to_markdown(tablefmt="github", showindex=False))
+```
+
+| nombre   | fecha      |   valor |
+|----------|------------|---------|
+| Lugar 1  | 2019-01-01 |  0.4608 |
+| Lugar 1  | 2019-01-06 |  0.7708 |
+| Lugar 1  | 2019-01-11 |  1.0258 |
+| Lugar 1  | 2019-01-16 |  0.9738 |
+| Lugar 1  | 2019-01-21 |  1.6659 |
+| Lugar 1  | 2019-01-26 |  1.8058 |
+| Lugar 2  | 2019-01-01 | -0.1871 |
+| Lugar 2  | 2019-01-06 |  0.3659 |
+| Lugar 2  | 2019-01-11 |  0.4351 |
+| Lugar 2  | 2019-01-16 |  0.4423 |
+| Lugar 2  | 2019-01-21 |  0.7645 |
+| Lugar 2  | 2019-01-26 |  0.4739 |
+| Lugar 3  | 2019-01-01 |  1.2455 |
+| Lugar 3  | 2019-01-06 |  1.4148 |
+| Lugar 3  | 2019-01-11 |  1.816  |
+| Lugar 3  | 2019-01-16 |  1.7174 |
+| Lugar 3  | 2019-01-21 |  2.1973 |
+| Lugar 3  | 2019-01-26 |  2.9024 |
+| Lugar 4  | 2019-01-01 |  0.9351 |
+| Lugar 4  | 2019-01-06 |  1.2654 |
+| Lugar 4  | 2019-01-11 |  1.9639 |
+| Lugar 4  | 2019-01-16 |  1.5008 |
+| Lugar 4  | 2019-01-21 |  1.8306 |
+| Lugar 4  | 2019-01-26 |  1.3421 |
+
+
+Finalmente, se presenta un ejemplo para 3 polígonos correspondientes a zonas dentro de provincias argentinas (Buenos Aires, Santa Fe y Córdoba).
+
+
+``` python
+# Buscar SPI-3 para las primeras 2 péntadas de Enero de 2019 en 3 provincias Argentinas
+fecha_desde = dateutil.parser.parse("2019-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2019-01-31").isoformat()
+url_chirps = f"{base_url}/chirps/serie_temporal/spi/3/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PoligonosEjemplo.geojson" 
+datos_spi3 = consumir_servicio_espacial_serie_temporal(url=url_chirps,
+                                                       usuario=usuario_default, clave=clave_default,
+                                                       archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(datos_spi3.to_markdown(tablefmt="github", showindex=False))
+```
+
+| nombre       | estadistico   | fecha      |   valor |
+|--------------|---------------|------------|---------|
+| Buenos Aires | 0%            | 2019-01-01 | -0.078  |
+| Buenos Aires | 25%           | 2019-01-01 |  0.2517 |
+| Buenos Aires | 50%           | 2019-01-01 |  0.398  |
+| Buenos Aires | 75%           | 2019-01-01 |  0.5374 |
+| Buenos Aires | 100%          | 2019-01-01 |  0.8423 |
+| Buenos Aires | Media         | 2019-01-01 |  0.3911 |
+| Buenos Aires | Desvio        | 2019-01-01 |  0.1849 |
+| Buenos Aires | MAD           | 2019-01-01 |  0.2142 |
+| Buenos Aires | 0%            | 2019-01-06 |  0.4098 |
+| Buenos Aires | 25%           | 2019-01-06 |  0.5933 |
+| Buenos Aires | 50%           | 2019-01-06 |  0.7258 |
+| Buenos Aires | 75%           | 2019-01-06 |  0.8388 |
+| Buenos Aires | 100%          | 2019-01-06 |  1.1238 |
+| Buenos Aires | Media         | 2019-01-06 |  0.7293 |
+| Buenos Aires | Desvio        | 2019-01-06 |  0.1654 |
+| Buenos Aires | MAD           | 2019-01-06 |  0.1805 |
+| Buenos Aires | 0%            | 2019-01-11 |  0.6197 |
+| Buenos Aires | 25%           | 2019-01-11 |  0.8722 |
+| Buenos Aires | 50%           | 2019-01-11 |  1.0177 |
+| Buenos Aires | 75%           | 2019-01-11 |  1.187  |
+| Buenos Aires | 100%          | 2019-01-11 |  1.5718 |
+| Buenos Aires | Media         | 2019-01-11 |  1.0439 |
+| Buenos Aires | Desvio        | 2019-01-11 |  0.2258 |
+| Buenos Aires | MAD           | 2019-01-11 |  0.2293 |
+| Buenos Aires | 0%            | 2019-01-16 |  0.5875 |
+| Buenos Aires | 25%           | 2019-01-16 |  0.8418 |
+| Buenos Aires | 50%           | 2019-01-16 |  0.9705 |
+| Buenos Aires | 75%           | 2019-01-16 |  1.1329 |
+| Buenos Aires | 100%          | 2019-01-16 |  1.7706 |
+| Buenos Aires | Media         | 2019-01-16 |  0.9951 |
+| Buenos Aires | Desvio        | 2019-01-16 |  0.2176 |
+| Buenos Aires | MAD           | 2019-01-16 |  0.2138 |
+| Buenos Aires | 0%            | 2019-01-21 |  1.218  |
+| Buenos Aires | 25%           | 2019-01-21 |  1.6593 |
+| Buenos Aires | 50%           | 2019-01-21 |  1.8487 |
+| Buenos Aires | 75%           | 2019-01-21 |  2.2959 |
+| Buenos Aires | 100%          | 2019-01-21 |  3      |
+| Buenos Aires | Media         | 2019-01-21 |  1.9718 |
+| Buenos Aires | Desvio        | 2019-01-21 |  0.4185 |
+| Buenos Aires | MAD           | 2019-01-21 |  0.3915 |
+| Buenos Aires | 0%            | 2019-01-26 |  1.1963 |
+| Buenos Aires | 25%           | 2019-01-26 |  1.4607 |
+| Buenos Aires | 50%           | 2019-01-26 |  1.6341 |
+| Buenos Aires | 75%           | 2019-01-26 |  1.8117 |
+| Buenos Aires | 100%          | 2019-01-26 |  2.9402 |
+| Buenos Aires | Media         | 2019-01-26 |  1.6833 |
+| Buenos Aires | Desvio        | 2019-01-26 |  0.3168 |
+| Buenos Aires | MAD           | 2019-01-26 |  0.258  |
+| Cordoba      | 0%            | 2019-01-01 | -1.1062 |
+| Cordoba      | 25%           | 2019-01-01 | -0.3529 |
+| Cordoba      | 50%           | 2019-01-01 |  0.1425 |
+| Cordoba      | 75%           | 2019-01-01 |  0.4282 |
+| Cordoba      | 100%          | 2019-01-01 |  1.2773 |
+| Cordoba      | Media         | 2019-01-01 |  0.0558 |
+| Cordoba      | Desvio        | 2019-01-01 |  0.5636 |
+| Cordoba      | MAD           | 2019-01-01 |  0.522  |
+| Cordoba      | 0%            | 2019-01-06 | -0.5794 |
+| Cordoba      | 25%           | 2019-01-06 |  0.1742 |
+| Cordoba      | 50%           | 2019-01-06 |  0.6288 |
+| Cordoba      | 75%           | 2019-01-06 |  0.9593 |
+| Cordoba      | 100%          | 2019-01-06 |  1.4607 |
+| Cordoba      | Media         | 2019-01-06 |  0.5502 |
+| Cordoba      | Desvio        | 2019-01-06 |  0.5007 |
+| Cordoba      | MAD           | 2019-01-06 |  0.5279 |
+| Cordoba      | 0%            | 2019-01-11 | -0.5256 |
+| Cordoba      | 25%           | 2019-01-11 |  0.1918 |
+| Cordoba      | 50%           | 2019-01-11 |  0.7772 |
+| Cordoba      | 75%           | 2019-01-11 |  1.2785 |
+| Cordoba      | 100%          | 2019-01-11 |  1.9516 |
+| Cordoba      | Media         | 2019-01-11 |  0.735  |
+| Cordoba      | Desvio        | 2019-01-11 |  0.6321 |
+| Cordoba      | MAD           | 2019-01-11 |  0.7788 |
+| Cordoba      | 0%            | 2019-01-16 | -0.3491 |
+| Cordoba      | 25%           | 2019-01-16 |  0.2188 |
+| Cordoba      | 50%           | 2019-01-16 |  0.6709 |
+| Cordoba      | 75%           | 2019-01-16 |  1.1694 |
+| Cordoba      | 100%          | 2019-01-16 |  1.8967 |
+| Cordoba      | Media         | 2019-01-16 |  0.7165 |
+| Cordoba      | Desvio        | 2019-01-16 |  0.5707 |
+| Cordoba      | MAD           | 2019-01-16 |  0.7065 |
+| Cordoba      | 0%            | 2019-01-21 | -0.1512 |
+| Cordoba      | 25%           | 2019-01-21 |  0.5743 |
+| Cordoba      | 50%           | 2019-01-21 |  0.883  |
+| Cordoba      | 75%           | 2019-01-21 |  1.3173 |
+| Cordoba      | 100%          | 2019-01-21 |  2.7037 |
+| Cordoba      | Media         | 2019-01-21 |  0.9927 |
+| Cordoba      | Desvio        | 2019-01-21 |  0.5675 |
+| Cordoba      | MAD           | 2019-01-21 |  0.5426 |
+| Cordoba      | 0%            | 2019-01-26 | -0.2764 |
+| Cordoba      | 25%           | 2019-01-26 |  0.2901 |
+| Cordoba      | 50%           | 2019-01-26 |  0.7371 |
+| Cordoba      | 75%           | 2019-01-26 |  1.3429 |
+| Cordoba      | 100%          | 2019-01-26 |  1.9204 |
+| Cordoba      | Media         | 2019-01-26 |  0.8148 |
+| Cordoba      | Desvio        | 2019-01-26 |  0.5807 |
+| Cordoba      | MAD           | 2019-01-26 |  0.7601 |
+| Uruguay      | 0%            | 2019-01-01 |  0.4794 |
+| Uruguay      | 25%           | 2019-01-01 |  0.5951 |
+| Uruguay      | 50%           | 2019-01-01 |  0.6368 |
+| Uruguay      | 75%           | 2019-01-01 |  0.6988 |
+| Uruguay      | 100%          | 2019-01-01 |  0.8053 |
+| Uruguay      | Media         | 2019-01-01 |  0.6487 |
+| Uruguay      | Desvio        | 2019-01-01 |  0.075  |
+| Uruguay      | MAD           | 2019-01-01 |  0.0737 |
+| Uruguay      | 0%            | 2019-01-06 |  0.8694 |
+| Uruguay      | 25%           | 2019-01-06 |  0.9657 |
+| Uruguay      | 50%           | 2019-01-06 |  0.9973 |
+| Uruguay      | 75%           | 2019-01-06 |  1.0322 |
+| Uruguay      | 100%          | 2019-01-06 |  1.096  |
+| Uruguay      | Media         | 2019-01-06 |  0.9979 |
+| Uruguay      | Desvio        | 2019-01-06 |  0.0461 |
+| Uruguay      | MAD           | 2019-01-06 |  0.0491 |
+| Uruguay      | 0%            | 2019-01-11 |  1.0985 |
+| Uruguay      | 25%           | 2019-01-11 |  1.1663 |
+| Uruguay      | 50%           | 2019-01-11 |  1.2109 |
+| Uruguay      | 75%           | 2019-01-11 |  1.2624 |
+| Uruguay      | 100%          | 2019-01-11 |  1.3298 |
+| Uruguay      | Media         | 2019-01-11 |  1.2143 |
+| Uruguay      | Desvio        | 2019-01-11 |  0.0586 |
+| Uruguay      | MAD           | 2019-01-11 |  0.0714 |
+| Uruguay      | 0%            | 2019-01-16 |  1.2572 |
+| Uruguay      | 25%           | 2019-01-16 |  1.3979 |
+| Uruguay      | 50%           | 2019-01-16 |  1.4212 |
+| Uruguay      | 75%           | 2019-01-16 |  1.4398 |
+| Uruguay      | 100%          | 2019-01-16 |  1.4885 |
+| Uruguay      | Media         | 2019-01-16 |  1.4159 |
+| Uruguay      | Desvio        | 2019-01-16 |  0.0382 |
+| Uruguay      | MAD           | 2019-01-16 |  0.03   |
+| Uruguay      | 0%            | 2019-01-21 |  1.3214 |
+| Uruguay      | 25%           | 2019-01-21 |  1.4415 |
+| Uruguay      | 50%           | 2019-01-21 |  1.517  |
+| Uruguay      | 75%           | 2019-01-21 |  1.5643 |
+| Uruguay      | 100%          | 2019-01-21 |  1.6581 |
+| Uruguay      | Media         | 2019-01-21 |  1.5042 |
+| Uruguay      | Desvio        | 2019-01-21 |  0.0751 |
+| Uruguay      | MAD           | 2019-01-21 |  0.0907 |
+| Uruguay      | 0%            | 2019-01-26 |  1.4809 |
+| Uruguay      | 25%           | 2019-01-26 |  1.5823 |
+| Uruguay      | 50%           | 2019-01-26 |  1.6484 |
+| Uruguay      | 75%           | 2019-01-26 |  1.7322 |
+| Uruguay      | 100%          | 2019-01-26 |  1.9315 |
+| Uruguay      | Media         | 2019-01-26 |  1.6646 |
+| Uruguay      | Desvio        | 2019-01-26 |  0.0989 |
+| Uruguay      | MAD           | 2019-01-26 |  0.1066 |
 
 
 ### 4.7.3. Pronósticos de precipitación y sequía a 15 días usando el producto CHIRPS-GEFS
@@ -1380,7 +1954,7 @@ plt.show()
 ```
 
 
-![svg](apidoc_files/apidoc_58_0.svg)
+![svg](apidoc_files/apidoc_70_0.svg)
 
 
 ## 4.8. Índice de Stress Evaporativo (ESI) y percentiles derivados
@@ -1451,7 +2025,204 @@ plt.show()
 ```
 
 
-![svg](apidoc_files/apidoc_60_0.svg)
+![svg](apidoc_files/apidoc_72_0.svg)
+
+
+Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
+
+Los puntos o polígonos deben especificarse en formato GeoJSON [17]. Además, cada punto o polígono debe tener asociado al menos un atributo para que el servicio pueda devolver una respuesta en la cual se puedan identificar cada una de las geometrías (puntos o polígonos). Por ejemplo, en caso de que los polígonos correspondan a localidades, el archivo GeoJSON podría contener atributos indicando el código de localidad o su nombre. Para el caso de los puntos, se podría indicar un nombre asociado a cada una de las ubicaciones, un código o los atributos que el usuario desee agregar.
+
+*Ruta*: /esi/serie_temporal/{producto:string}/{escala:string}/{fecha_desde:date}/{fecha_hasta:date}
+
+*Método*: POST
+
+*Parámetros*: 
+
+  * producto: { esi = índice ESI, percentiles = percentils asociado índice ESI };
+  * escala: escala temporal "ET" de agregación del ESI o percentiles { 4WK = 4 semanas, 12WK = 12 semanas };
+  * fecha_desde: fecha de inicio del período a consultar (en formato ISO-8601 [20]); 
+  * fecha_hasta: fecha de fin del período a consultar (en formato ISO-8601 [20]).
+  
+*Parámetros del cuerpo del request*:
+  
+  * zona.geojson: string de formato GeoJSON que representa los puntos o polígonos sobre los cuales se efectuará la consulta.
+  
+*Respuesta*:
+  
+El servicio devuelve una respuesta en formato JSON, la cual puede convertirse a un formato tabular. La respuesta contiene los datos provistos por el usuario para cada una de las geometrías y los siguientes campos, según el usuario haya especificado puntos o polígonos:
+
+[
+  {
+    ...
+    <atributos provistos por el usuario para cada punto o polígono>
+    ...,
+    estadístico: string (solamente para el caso de polígonos, ver detalle a continuación),
+    fecha: date (fecha dentro del rango de fechas especificadas por el usuario),
+    valor: float (valor asociado al punto o polígono para la fecha especificada - y al estadístico en el caso de polígonos)
+  }
+]
+
+Los estadísticos devueltos para el caso de las consultas asociadas a los polígonos se codifican de la siguiente manera:
+
+  * 0%: mínimo valor dentro del polígono
+  * 25%: percentil 25 de los valores dentro del polígono
+  * 50%: mediana de los valores dentro del polígono
+  * 75%: percentil 75 de los valores dentro del polígono
+  * 100%: máximo valor dentro del polígono
+  * Media: media de los valores dentro del polígono
+  * Desvio: desvío estándar de los valores dentro del polígono
+  * MAD: desvío mediano absoluto de los valores dentro del polígono
+  
+A continuación se presentan dos ejemplos: una consulta para puntos y otra para polígonos. Para la consulta basada en puntos, cada uno de ellos tiene asociado un nombre que identifica la ubicación. Para el caso de los polígonos, cada uno de ellos tiene asociado un nombre que representa una provincia de Argentina. Se presenta primero el ejemplo para ubicaciones puntuales.
+
+
+``` python
+# Buscar ESI con escala de agregación de 4 semanas para Enero de 2019 en 4 ubicaciones puntuales
+fecha_desde = dateutil.parser.parse("2019-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2019-01-31").isoformat()
+url_chirps = f"{base_url}/esi/serie_temporal/esi/4WK/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PuntosEjemplo.geojson" 
+datos_esi = consumir_servicio_espacial_serie_temporal(url=url_chirps,
+                                                      usuario=usuario_default, clave=clave_default,
+                                                      archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(datos_esi.to_markdown(tablefmt="github", showindex=False))
+```
+
+| nombre   | fecha      |   valor |
+|----------|------------|---------|
+| Lugar 1  | 2019-01-08 |  1.6678 |
+| Lugar 1  | 2019-01-15 |  1.7392 |
+| Lugar 1  | 2019-01-22 |  2.1009 |
+| Lugar 1  | 2019-01-29 |  2.74   |
+| Lugar 2  | 2019-01-08 |  0.3689 |
+| Lugar 2  | 2019-01-15 |  1.2818 |
+| Lugar 2  | 2019-01-22 |  1.8459 |
+| Lugar 2  | 2019-01-29 |  1.6372 |
+| Lugar 3  | 2019-01-08 |  1.8288 |
+| Lugar 3  | 2019-01-15 |  1.9126 |
+| Lugar 3  | 2019-01-22 |  2.4142 |
+| Lugar 3  | 2019-01-29 |  3.3442 |
+| Lugar 4  | 2019-01-08 |  0.7941 |
+| Lugar 4  | 2019-01-15 |  2.6321 |
+| Lugar 4  | 2019-01-22 |  1.8936 |
+| Lugar 4  | 2019-01-29 |  1.8996 |
+
+
+Finalmente, se presenta un ejemplo para 3 polígonos correspondientes a zonas dentro de provincias argentinas (Buenos Aires, Santa Fe y Córdoba).
+
+
+``` python
+# Buscar ESI con escala de agregación de 4 semanas para la primera quincena de Enero de 2019 en 3 provincias Argentinas
+fecha_desde = dateutil.parser.parse("2019-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2019-01-31").isoformat()
+url_chirps = f"{base_url}/esi/serie_temporal/esi/4WK/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PoligonosEjemplo.geojson" 
+datos_esi = consumir_servicio_espacial_serie_temporal(url=url_chirps,
+                                                      usuario=usuario_default, clave=clave_default,
+                                                      archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(datos_esi.to_markdown(tablefmt="github", showindex=False))
+```
+
+| nombre       | estadistico   | fecha      |   valor |
+|--------------|---------------|------------|---------|
+| Buenos Aires | 0%            | 2019-01-08 |  0.8725 |
+| Buenos Aires | 25%           | 2019-01-08 |  1.4398 |
+| Buenos Aires | 50%           | 2019-01-08 |  1.6139 |
+| Buenos Aires | 75%           | 2019-01-08 |  1.8178 |
+| Buenos Aires | 100%          | 2019-01-08 |  2.6498 |
+| Buenos Aires | Media         | 2019-01-08 |  1.6387 |
+| Buenos Aires | Desvio        | 2019-01-08 |  0.2871 |
+| Buenos Aires | MAD           | 2019-01-08 |  0.2732 |
+| Buenos Aires | 0%            | 2019-01-15 |  1.1135 |
+| Buenos Aires | 25%           | 2019-01-15 |  1.7065 |
+| Buenos Aires | 50%           | 2019-01-15 |  1.9255 |
+| Buenos Aires | 75%           | 2019-01-15 |  2.1792 |
+| Buenos Aires | 100%          | 2019-01-15 |  3.5    |
+| Buenos Aires | Media         | 2019-01-15 |  1.9667 |
+| Buenos Aires | Desvio        | 2019-01-15 |  0.3736 |
+| Buenos Aires | MAD           | 2019-01-15 |  0.3553 |
+| Buenos Aires | 0%            | 2019-01-22 |  1.244  |
+| Buenos Aires | 25%           | 2019-01-22 |  2.0362 |
+| Buenos Aires | 50%           | 2019-01-22 |  2.3287 |
+| Buenos Aires | 75%           | 2019-01-22 |  2.599  |
+| Buenos Aires | 100%          | 2019-01-22 |  3.5    |
+| Buenos Aires | Media         | 2019-01-22 |  2.3508 |
+| Buenos Aires | Desvio        | 2019-01-22 |  0.4162 |
+| Buenos Aires | MAD           | 2019-01-22 |  0.4152 |
+| Buenos Aires | 0%            | 2019-01-29 |  1.6481 |
+| Buenos Aires | 25%           | 2019-01-29 |  2.5524 |
+| Buenos Aires | 50%           | 2019-01-29 |  2.9334 |
+| Buenos Aires | 75%           | 2019-01-29 |  3.3642 |
+| Buenos Aires | 100%          | 2019-01-29 |  3.5    |
+| Buenos Aires | Media         | 2019-01-29 |  2.9129 |
+| Buenos Aires | Desvio        | 2019-01-29 |  0.4633 |
+| Buenos Aires | MAD           | 2019-01-29 |  0.6    |
+| Cordoba      | 0%            | 2019-01-08 | -0.9606 |
+| Cordoba      | 25%           | 2019-01-08 |  0.1445 |
+| Cordoba      | 50%           | 2019-01-08 |  0.7749 |
+| Cordoba      | 75%           | 2019-01-08 |  1.3972 |
+| Cordoba      | 100%          | 2019-01-08 |  2.9342 |
+| Cordoba      | Media         | 2019-01-08 |  0.7868 |
+| Cordoba      | Desvio        | 2019-01-08 |  0.7589 |
+| Cordoba      | MAD           | 2019-01-08 |  0.9262 |
+| Cordoba      | 0%            | 2019-01-15 |  0.0937 |
+| Cordoba      | 25%           | 2019-01-15 |  1.0782 |
+| Cordoba      | 50%           | 2019-01-15 |  1.6112 |
+| Cordoba      | 75%           | 2019-01-15 |  2.2889 |
+| Cordoba      | 100%          | 2019-01-15 |  3.5    |
+| Cordoba      | Media         | 2019-01-15 |  1.7121 |
+| Cordoba      | Desvio        | 2019-01-15 |  0.7915 |
+| Cordoba      | MAD           | 2019-01-15 |  0.8593 |
+| Cordoba      | 0%            | 2019-01-22 |  0.7953 |
+| Cordoba      | 25%           | 2019-01-22 |  1.9108 |
+| Cordoba      | 50%           | 2019-01-22 |  2.3775 |
+| Cordoba      | 75%           | 2019-01-22 |  3.1774 |
+| Cordoba      | 100%          | 2019-01-22 |  3.5    |
+| Cordoba      | Media         | 2019-01-22 |  2.4871 |
+| Cordoba      | Desvio        | 2019-01-22 |  0.6949 |
+| Cordoba      | MAD           | 2019-01-22 |  0.8245 |
+| Cordoba      | 0%            | 2019-01-29 |  0.8941 |
+| Cordoba      | 25%           | 2019-01-29 |  1.8956 |
+| Cordoba      | 50%           | 2019-01-29 |  2.3473 |
+| Cordoba      | 75%           | 2019-01-29 |  3.2194 |
+| Cordoba      | 100%          | 2019-01-29 |  3.5    |
+| Cordoba      | Media         | 2019-01-29 |  2.4849 |
+| Cordoba      | Desvio        | 2019-01-29 |  0.6991 |
+| Cordoba      | MAD           | 2019-01-29 |  0.825  |
+| Uruguay      | 0%            | 2019-01-08 |  0.526  |
+| Uruguay      | 25%           | 2019-01-08 |  1.4537 |
+| Uruguay      | 50%           | 2019-01-08 |  1.6513 |
+| Uruguay      | 75%           | 2019-01-08 |  1.844  |
+| Uruguay      | 100%          | 2019-01-08 |  2.4932 |
+| Uruguay      | Media         | 2019-01-08 |  1.6395 |
+| Uruguay      | Desvio        | 2019-01-08 |  0.3016 |
+| Uruguay      | MAD           | 2019-01-08 |  0.2887 |
+| Uruguay      | 0%            | 2019-01-15 |  0.9912 |
+| Uruguay      | 25%           | 2019-01-15 |  1.6502 |
+| Uruguay      | 50%           | 2019-01-15 |  1.8414 |
+| Uruguay      | 75%           | 2019-01-15 |  2.0123 |
+| Uruguay      | 100%          | 2019-01-15 |  2.5436 |
+| Uruguay      | Media         | 2019-01-15 |  1.8371 |
+| Uruguay      | Desvio        | 2019-01-15 |  0.2796 |
+| Uruguay      | MAD           | 2019-01-15 |  0.2669 |
+| Uruguay      | 0%            | 2019-01-22 |  1.0137 |
+| Uruguay      | 25%           | 2019-01-22 |  1.8649 |
+| Uruguay      | 50%           | 2019-01-22 |  2.052  |
+| Uruguay      | 75%           | 2019-01-22 |  2.3171 |
+| Uruguay      | 100%          | 2019-01-22 |  3.2291 |
+| Uruguay      | Media         | 2019-01-22 |  2.1104 |
+| Uruguay      | Desvio        | 2019-01-22 |  0.3602 |
+| Uruguay      | MAD           | 2019-01-22 |  0.3447 |
+| Uruguay      | 0%            | 2019-01-29 |  1.4326 |
+| Uruguay      | 25%           | 2019-01-29 |  2.0166 |
+| Uruguay      | 50%           | 2019-01-29 |  2.265  |
+| Uruguay      | 75%           | 2019-01-29 |  2.5738 |
+| Uruguay      | 100%          | 2019-01-29 |  3.5    |
+| Uruguay      | Media         | 2019-01-29 |  2.3238 |
+| Uruguay      | Desvio        | 2019-01-29 |  0.4061 |
+| Uruguay      | MAD           | 2019-01-29 |  0.4055 |
 
 
 # Referencias
