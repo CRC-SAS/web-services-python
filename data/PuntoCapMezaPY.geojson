@@ -1,0 +1,16 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "nombre": "Cap. Meza" },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -55.312236,
+          -26.831740
+        ]
+      }
+    }
+  ]
+}

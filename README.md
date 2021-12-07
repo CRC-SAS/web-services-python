@@ -5,7 +5,7 @@
 #### Daniel Bonhaure (danielbonhaure@gmail.com)
 #### Santiago Rovere (srovere@gmail.com)
 #### Guillermo Podestá (gpodesta@rsmas.miami.edu)
-#### *01 de febrero de 2021*
+#### *7 de diciembre de 2021*
 
 
 # 1. Introducción
@@ -65,11 +65,16 @@ if not is_venv():
     print("Considere utilizar un entorno virtual. Vea el archivo setup.sh en este mismo repositorio.")
 
 # Instalar modulos necesarios
+!python -m pip install numpy
 !python -m pip install netCDF4
 !python -m pip install python-dateutil
 !python -m pip install pandas
 !python -m pip install seaborn
 !python -m pip install tabulate
+!python -m pip install geopandas
+!python -m pip install xarray
+!python -m pip install rioxarray
+!python -m pip install requests
 ```
 
 Una vez instalados todos los paquetes necesarios, éstos serán importados, de manera de poder ejecutar el código y los ejemplos provistos en adelante.
@@ -94,6 +99,9 @@ import pandas as pd
 import matplotlib.cm
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import geopandas as gpd
+import rioxarray
+import xarray as xr
 ```
 
 Luego, indicaremos al paquete `matplotlib` que los gráficos van a ser generados en un notebook.
@@ -151,6 +159,21 @@ def consumir_servicio_espacial(url, usuario, clave, archivo_geojson_zona, raster
 
     return nc_fechas, nc_rasters  # los rasters se devuelven como variables netcdf
 
+
+# Función para acceder a un servicio web definido por una URL utilizando un usuario y clave.
+# Se envía un archivo GeoJSON para realizar la consulta en un área determinada.
+# La respuesta se devuelve con un objeto de tipo xarray.
+def consumir_servicio_espacial_xarray(url, usuario, clave, archivo_geojson_zona):
+    # a. Obtener datos y guardarlos en un archivo temporal (en memoria)
+    zona_geojson = pathlib.Path(archivo_geojson_zona).read_text()
+    respuesta = consumir_servicio_POST(url, usuario, clave, json.dumps({'zona.geojson': zona_geojson}))
+
+    # b. En lugar de abrir y leer un archivo, se leen los bytes recibidos
+    archivo_xr = xr.load_dataset(respuesta.content, engine='scipy')
+
+    return archivo_xr  # se devuelve un objeto xarray
+
+
 # Función para acceder a un servicio web definido por una URL utilizando un usuario y clave.
 # Se envía un archivo GeoJSON para realizar la consulta en puntos o un área determinada.
 # La respuesta se devuelve con un Data Frame.
@@ -161,7 +184,8 @@ def consumir_servicio_espacial_serie_temporal(url, usuario, clave, archivo_geojs
 
     # b. Leer respuesta y crear un dataframe
     datosJSON = respuesta.json()
-    return pandas.io.json.json_normalize(datosJSON)
+
+    return pandas.io.json.json_normalize(datosJSON)  # se devuelve un dataframe
 
 ```
 
@@ -236,14 +260,14 @@ print(estaciones.head(6).to_markdown(tablefmt="github", showindex=False))
 
 ```
 
-|   omm_id | nombre                      |   latitud |   longitud |   elevacion | nivel_adm1          | nivel_adm2           | tipo   |
-|----------|-----------------------------|-----------|------------|-------------|---------------------|----------------------|--------|
-|    87118 | Famaillá INTA               |    -27.05 |     -65.42 |         363 | Tucumán             | Famaillá             | C      |
-|    87131 | La María INTA               |    -28.23 |     -64.15 |         169 | Santiago del Estero | Silípica             | C      |
-|    87144 | Las Breñas INTA             |    -27.08 |     -61.12 |         102 | Chaco               | Nueve de Julio       | C      |
-|    87147 | Pres. Roque Sáenz Peña INTA |    -26.87 |     -60.45 |          90 | Chaco               | Comandante Fernández | C      |
-|    87158 | Colonia Benítez INTA        |    -27.42 |     -58.93 |          54 | Chaco               | San Fernando         | C      |
-|    87180 | Cerro Azul INTA             |    -27.65 |     -55.43 |         270 | Misiones            | Leandro N. Alem      | C      |
+|   omm_id | nombre                          |   latitud |   longitud |   elevacion | nivel_adm1          | nivel_adm2           | tipo   |
+|----------|---------------------------------|-----------|------------|-------------|---------------------|----------------------|--------|
+|    87586 | Club Náutico San Isidro (NUEVA) |  -34.4492 |   -58.5058 |           4 | Buenos Aires        | San Isidro           | A      |
+|    87118 | Famaillá INTA                   |  -27.05   |   -65.42   |         363 | Tucumán             | Famaillá             | C      |
+|    87131 | La María INTA                   |  -28.23   |   -64.15   |         169 | Santiago del Estero | Silípica             | C      |
+|    87144 | Las Breñas INTA                 |  -27.08   |   -61.12   |         102 | Chaco               | Nueve de Julio       | C      |
+|    87147 | Pres. Roque Sáenz Peña INTA     |  -26.87   |   -60.45   |          90 | Chaco               | Comandante Fernández | C      |
+|    87589 | Almirante Brown                 |  -34.8408 |   -58.397  |           0 | Buenos Aires        | Burzaco              | A      |
 
 
 ### 4.1.2. Estaciones de un país
@@ -285,12 +309,12 @@ print(estaciones_paraguay.head(6).to_markdown(tablefmt="github", showindex=False
 
 |   omm_id | nombre                                         |   latitud |   longitud |   elevacion | nivel_adm1       | nivel_adm2         | tipo   |
 |----------|------------------------------------------------|-----------|------------|-------------|------------------|--------------------|--------|
+|    86086 | Puerto Casado                                  |   -22.28  |    -57.94  |          78 | Alto Paraguay    | La Victoria        | C      |
 |    86125 | Pozo Colorado 125                              |   -23.298 |    -59.202 |          98 | Presidente Hayes | Pozo Colorado      | C      |
 |    86248 | Ciudad del Este                                |   -25.519 |    -54.613 |         196 | Alto Paraná      | Minga Guazú        | C      |
 |    86033 | Bahía Negra                                    |   -20.23  |    -58.17  |          82 | Alto Paraguay    | Fuerte Olimpo      | C      |
 |    86065 | Base Aérea “Tte. 2º de Mna. Pelayo Prats Gill” |   -22.56  |    -61.61  |         206 | Boquerón         | Dr. Pedro- P. Peña | C      |
 |    86068 | Aeropuerto de Mcal. José Félix Estigarribia    |   -22.03  |    -60.62  |         167 | Boquerón         | Mcal. Estigarribia | C      |
-|    86086 | Puerto Casado                                  |   -23.58  |    -60.37  |          78 | Alto Paraguay    | La Victoria        | C      |
 
 
 ### 4.1.3. Estaciones de un país y de una institución o red
@@ -341,14 +365,14 @@ print(estaciones_argentina_smn.head(6).to_markdown(tablefmt="github", showindex=
 
 ```
 
-|   omm_id | nombre           |   latitud |   longitud |   elevacion | nivel_adm1   | nivel_adm2                 | tipo   |
-|----------|------------------|-----------|------------|-------------|--------------|----------------------------|--------|
-|    87016 | Orán Aero        |  -23.1547 |   -64.3281 |         357 | Salta        | Orán                       | C      |
-|    87022 | Tartagal Aero    |  -22.6166 |   -63.7965 |         450 | Salta        | General José de San Martín | C      |
-|    87043 | Jujuy Univ. Nac. |  -24.1786 |   -65.3263 |        1302 | Jujuy        | Palpalá                    | C      |
-|    87046 | Jujuy Aero       |  -24.384  |   -65.0955 |         905 | JUJUY        | El Carmen                  | C      |
-|    87047 | Salta Aero       |  -24.8443 |   -65.4757 |        1221 | Salta        | Capital                    | C      |
-|    87050 | Metán            |  -25.5243 |   -64.973  |         855 | Salta        | Metán                      | C      |
+|   omm_id | nombre                          |   latitud |   longitud |   elevacion | nivel_adm1      | nivel_adm2                 | tipo   |
+|----------|---------------------------------|-----------|------------|-------------|-----------------|----------------------------|--------|
+|    87586 | Club Náutico San Isidro (NUEVA) |  -34.4492 |   -58.5058 |           4 | Buenos Aires    | San Isidro                 | A      |
+|    87589 | Almirante Brown                 |  -34.8408 |   -58.397  |           0 | Buenos Aires    | Burzaco                    | A      |
+|    87590 | Sede Dorrego SMN (NUEVA)        |  -34.5642 |   -58.4173 |           0 | Capital Federal | Capital Federal            | A      |
+|    87016 | Orán Aero                       |  -23.1547 |   -64.3281 |         357 | Salta           | Orán                       | C      |
+|    87022 | Tartagal Aero                   |  -22.6166 |   -63.7965 |         450 | Salta           | General José de San Martín | C      |
+|    87043 | Jujuy Univ. Nac.                |  -24.1786 |   -65.3263 |        1302 | Jujuy           | Palpalá                    | C      |
 
 
 ### 4.1.4. Estaciones geográficamente vecinas
@@ -513,7 +537,9 @@ plt.show()
 ```
 
 
+    
 ![svg](apidoc_files/apidoc_28_0.svg)
+    
 
 
 ### 4.2.2. Búsqueda de datos para *una* de las variables observadas en una estación meteorológica
@@ -588,7 +614,9 @@ plt.show()
 ```
 
 
+    
 ![svg](apidoc_files/apidoc_31_0.svg)
+    
 
 
 ## 4.3. Estadísticas y normales climáticas
@@ -745,7 +773,96 @@ plt.show()
 ```
 
 
+    
 ![svg](apidoc_files/apidoc_36_0.svg)
+    
+
+
+### 4.3.3. Estadísticas mensuales
+
+Este servicio devuelve —por cada llamada— el agregado mensual de un estadístico descriptivo para una de estas tres variables climáticas (precipitación y temperaturas máxima y mínima) observadas en una estación meteorológica. Los estadísticos descriptivos disponibles se muestran en la tabla siguiente; todos los estadísticos listados en la tabla se calculan y agregan para todas las variables (a excepción de *ocurrencia* que se calcula solamente para precipitación). Por lo tanto, si se desean estadísticos diferentes para una misma variable, por ejemplo totales de precipitación y desviación estándar muestral de la precipitación, se deberá ejecutar el servicio dos veces (una vez por cada estadístico deseado).
+
+Los estadísticos están calculados para ventanas de tiempo móviles de diferentes anchos (de 1 a 24 meses). Estas ventanas de tiempo se desplazan cada una péntada. Una péntada es un período de aproximadamente 5 días. Hay 6 péntadas por mes, las cuales comienzan en los días 1, 6, 11, 16, 21 y 26 de cada mes. Las primeras 5 péntadas del mes incluyen siempre 5 días, mientras que la última péntada del mes puede incluir entre 3 y 6 días dependiendo de la cantidad de días del mes. De acuerdo a esta definición, una péntada siempre comienza y termina dentro del mismo mes calendario. Por lo tanto, es posible agregar los datos por mes, para esto es necesario considerar un ancho de ventana de agregación de 6 péntadas, iniciando la agregación en la primer péntada del mes. Es justamente esto lo que hace este servicio, y además, este comportamiento no puede ser modificado.
+
+*Ruta*: /estadisticas_mensuales/{omm_id:int}/{variable_id:string}/{estadistico:string}/{ano_desde:int}/{ano_hasta:int}
+
+*Método*: GET
+
+*Parámetros*: 
+
+  * omm_id: Id OMM de la estación meteorológica;
+  * variable_id: variable cuyos datos se van a buscar;
+  * estadistico: ver campo *id* en la tabla siguiente
+  
+  id                 | estadístico
+  ------------------ | ----------------------------------------------------------------------
+  Suma               | Sumatoria de los valores
+  Media              | Media muestral
+  Mediana            | Mediana muestral
+  DesviacionEstandar | Desviación estándar muestral
+  MAD                | Mediana de desviaciones absolutas
+  NFaltantes         | Cantidad de valores faltantes en la muestra
+  NDisponibles       | Cantidad de valores no faltantes en la muestra
+  Ocurrencia         | Cantidad de días con precipitación mayor a 0.1 mm (sólo aplicable a precipitación)
+  
+  * anho_desde: Año a partir de la cual se buscan datos;
+  * anho_hasta: Año hasta la cual se buscan datos.
+  
+*Respuesta*: 
+[
+  {
+    omm_id: integer
+    anho: integer
+    mes: integer (1, 2, ..., 12)
+    variable: string { tmax, tmin, prcp }
+    estadistico: string { Suma. Media, Mediana, DesviacionEstandar, MAD, NFaltantes, NDisponibles, Ocurrencia }
+    valor: float
+  }
+]
+
+En el ejemplo que se muestra a continuación, se solicitan las medias de las tres variables descriptas arriba para la estación Pehuajó (Id OMM 87544), agrupadas en períodos móviles de 6 péntadas, iniciando siempre en la primer péntada del mes (esto es siempre así al utilizar este servicio, es decir, no se pueden modificar ni el anho de ventana de la agregación, no la péntada de inicio). 
+
+
+
+``` python
+# Búsqueda de totales mensuales de precipitación.
+url_estadisticas   = f"{base_url}/estadisticas_mensuales/87544/prcp/Suma/2000/2001"
+estadisticas_largo = consumir_servicio_JSON(url=url_estadisticas,
+                                            usuario=usuario_default, clave=clave_default)
+estadisticas_ancho = (estadisticas_largo
+    .pivot_table(index=['omm_id', 'anho', 'mes', 'estadistico'], columns='variable', values='valor')
+    .reset_index().rename_axis(None, axis=1))
+
+# Tabla de datos de totales mensuales
+print(estadisticas_ancho.to_markdown(tablefmt="github", showindex=False))
+```
+
+|   omm_id |   anho |   mes | estadistico   |   prcp |
+|----------|--------|-------|---------------|--------|
+|    87544 |   2000 |     1 | Suma          |  217.7 |
+|    87544 |   2000 |     2 | Suma          |  218.3 |
+|    87544 |   2000 |     3 | Suma          |   99.5 |
+|    87544 |   2000 |     4 | Suma          |   47.5 |
+|    87544 |   2000 |     5 | Suma          |  180   |
+|    87544 |   2000 |     6 | Suma          |   26   |
+|    87544 |   2000 |     7 | Suma          |    6.3 |
+|    87544 |   2000 |     8 | Suma          |   19.1 |
+|    87544 |   2000 |     9 | Suma          |    9.4 |
+|    87544 |   2000 |    10 | Suma          |  282.7 |
+|    87544 |   2000 |    11 | Suma          |   93.4 |
+|    87544 |   2000 |    12 | Suma          |   46.8 |
+|    87544 |   2001 |     1 | Suma          |  117   |
+|    87544 |   2001 |     2 | Suma          |  151.5 |
+|    87544 |   2001 |     3 | Suma          |  207.8 |
+|    87544 |   2001 |     4 | Suma          |  142.6 |
+|    87544 |   2001 |     5 | Suma          |   25.1 |
+|    87544 |   2001 |     6 | Suma          |    6.4 |
+|    87544 |   2001 |     7 | Suma          |    5   |
+|    87544 |   2001 |     8 | Suma          |   58   |
+|    87544 |   2001 |     9 | Suma          |  121   |
+|    87544 |   2001 |    10 | Suma          |  113.4 |
+|    87544 |   2001 |    11 | Suma          |  191.6 |
+|    87544 |   2001 |    12 | Suma          |   57   |
 
 
 ## 4.4. Índices de sequía
@@ -929,7 +1046,7 @@ print(spi_3_ultimo.to_markdown(tablefmt="github", showindex=False))
 
 |   indice_configuracion_id |   omm_id |   pentada_fin |   ano |   metodo_imputacion_id |   valor_dato |   valor_indice |   percentil_dato |
 |---------------------------|----------|---------------|-------|------------------------|--------------|----------------|------------------|
-|                        43 |    87544 |             6 |  2021 |                      0 |        187.8 |        -1.6995 |           4.4617 |
+|                        43 |    87544 |            67 |  2021 |                      0 |        323.7 |          0.477 |          68.3318 |
 
 
 ### 4.4.3. Parámetros y otros valores resultantes del ajuste de distribuciones
@@ -1170,16 +1287,19 @@ _ = figure.suptitle('NDVI para Paysandú y Durazno (Uruguay)\n'
 
 for ax, fecha, raster in zip(figure.get_axes(), fechas, rasters):
     __ = ax.set_title(fecha.strftime("%b %d, %Y")), ax.set_xticks([]), ax.set_yticks([])
-    im = ax.imshow(raster if len(fechas) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
+    im = ax.imshow(raster if len(rasters) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
 
 _ = figure.colorbar(im, ax=figure.get_axes())
 
+plt.axis('off')
 plt.show()
 
 ```
 
 
-![svg](apidoc_files/apidoc_51_0.svg)
+    
+![svg](apidoc_files/apidoc_53_0.svg)
+    
 
 
 Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
@@ -1242,24 +1362,166 @@ datos_ndvi = consumir_servicio_espacial_serie_temporal(url=url_modis,
 print(datos_ndvi.to_markdown(tablefmt="github", showindex=False))
 ```
 
-| nombre   | fecha      |   valor |
-|----------|------------|---------|
-| Lugar 1  | 2019-01-01 |  0.7364 |
-| Lugar 1  | 2019-01-09 |  0.7958 |
-| Lugar 1  | 2019-01-17 |  0.8067 |
-| Lugar 1  | 2019-01-25 |  0.8348 |
-| Lugar 2  | 2019-01-01 |  0.6335 |
-| Lugar 2  | 2019-01-09 |  0.8109 |
-| Lugar 2  | 2019-01-17 |  0.845  |
-| Lugar 2  | 2019-01-25 |  0.8975 |
-| Lugar 3  | 2019-01-01 |  0.6556 |
-| Lugar 3  | 2019-01-09 |  0.6808 |
-| Lugar 3  | 2019-01-17 |  0.6767 |
-| Lugar 3  | 2019-01-25 |  0.7233 |
-| Lugar 4  | 2019-01-01 |  0.5909 |
-| Lugar 4  | 2019-01-09 |  0.6446 |
-| Lugar 4  | 2019-01-17 |  0.6674 |
-| Lugar 4  | 2019-01-25 |  0.6883 |
+
+    ---------------------------------------------------------------------------
+
+    gaierror                                  Traceback (most recent call last)
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connection.py in _new_conn(self)
+        174             conn = connection.create_connection(
+    --> 175                 (self._dns_host, self.port), self.timeout, **extra_kw
+        176             )
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/util/connection.py in create_connection(address, timeout, source_address, socket_options)
+         72 
+    ---> 73     for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
+         74         af, socktype, proto, canonname, sa = res
+
+
+    /usr/lib/python3.7/socket.py in getaddrinfo(host, port, family, type, proto, flags)
+        747     addrlist = []
+    --> 748     for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+        749         af, socktype, proto, canonname, sa = res
+
+
+    gaierror: [Errno -2] Name or service not known
+
+    
+    During handling of the above exception, another exception occurred:
+
+
+    NewConnectionError                        Traceback (most recent call last)
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connectionpool.py in urlopen(self, method, url, body, headers, retries, redirect, assert_same_host, timeout, pool_timeout, release_conn, chunked, body_pos, **response_kw)
+        705                 headers=headers,
+    --> 706                 chunked=chunked,
+        707             )
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connectionpool.py in _make_request(self, conn, method, url, timeout, chunked, **httplib_request_kw)
+        381         try:
+    --> 382             self._validate_conn(conn)
+        383         except (SocketTimeout, BaseSSLError) as e:
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connectionpool.py in _validate_conn(self, conn)
+       1009         if not getattr(conn, "sock", None):  # AppEngine might not have  `.sock`
+    -> 1010             conn.connect()
+       1011 
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connection.py in connect(self)
+        357         # Add certificate verification
+    --> 358         conn = self._new_conn()
+        359         hostname = self.host
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connection.py in _new_conn(self)
+        186             raise NewConnectionError(
+    --> 187                 self, "Failed to establish a new connection: %s" % e
+        188             )
+
+
+    NewConnectionError: <urllib3.connection.HTTPSConnection object at 0x7fbb124e0910>: Failed to establish a new connection: [Errno -2] Name or service not known
+
+    
+    During handling of the above exception, another exception occurred:
+
+
+    MaxRetryError                             Traceback (most recent call last)
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/adapters.py in send(self, request, stream, timeout, verify, cert, proxies)
+        448                     retries=self.max_retries,
+    --> 449                     timeout=timeout
+        450                 )
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connectionpool.py in urlopen(self, method, url, body, headers, retries, redirect, assert_same_host, timeout, pool_timeout, release_conn, chunked, body_pos, **response_kw)
+        755             retries = retries.increment(
+    --> 756                 method, url, error=e, _pool=self, _stacktrace=sys.exc_info()[2]
+        757             )
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/util/retry.py in increment(self, method, url, response, error, _pool, _stacktrace)
+        573         if new_retry.is_exhausted():
+    --> 574             raise MaxRetryError(_pool, url, error or ResponseError(cause))
+        575 
+
+
+    MaxRetryError: HTTPSConnectionPool(host='api.crc-sas.org', port=443): Max retries exceeded with url: /ws-api/indices_vegetacion/serie_temporal/ndvi/2019-01-01T00:00:00/2019-01-31T00:00:00 (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7fbb124e0910>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+
+    
+    During handling of the above exception, another exception occurred:
+
+
+    ConnectionError                           Traceback (most recent call last)
+
+    /tmp/ipykernel_18559/1030283418.py in <module>
+          6 datos_ndvi = consumir_servicio_espacial_serie_temporal(url=url_modis,
+          7                                                        usuario=usuario_default, clave=clave_default,
+    ----> 8                                                        archivo_geojson_zona=zona_geojson)
+          9 # Mostrar datos en formato tabular
+         10 print(datos_ndvi.to_markdown(tablefmt="github", showindex=False))
+
+
+    /tmp/ipykernel_18559/3520485415.py in consumir_servicio_espacial_serie_temporal(url, usuario, clave, archivo_geojson_zona)
+         64     # a. Obtener datos y guardarlos en un archivo temporal
+         65     zona_geojson = pathlib.Path(archivo_geojson_zona).read_text()
+    ---> 66     respuesta = consumir_servicio_POST(url, usuario, clave, json.dumps({'zona.geojson': zona_geojson}))
+         67 
+         68     # b. Leer respuesta y crear un dataframe
+
+
+    /tmp/ipykernel_18559/3520485415.py in consumir_servicio_POST(url, usuario, clave, data)
+          9 # Devuelve la respuesta como un pandas.DataFrame.
+         10 def consumir_servicio_POST(url, usuario, clave, data):
+    ---> 11     respuesta = requests.post(url=url, data=data, auth=requests.auth.HTTPBasicAuth(usuario, clave))
+         12     return respuesta
+         13 
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/api.py in post(url, data, json, **kwargs)
+        115     """
+        116 
+    --> 117     return request('post', url, data=data, json=json, **kwargs)
+        118 
+        119 
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/api.py in request(method, url, **kwargs)
+         59     # cases, and look like a memory leak in others.
+         60     with sessions.Session() as session:
+    ---> 61         return session.request(method=method, url=url, **kwargs)
+         62 
+         63 
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/sessions.py in request(self, method, url, params, data, headers, cookies, files, auth, timeout, allow_redirects, proxies, hooks, stream, verify, cert, json)
+        540         }
+        541         send_kwargs.update(settings)
+    --> 542         resp = self.send(prep, **send_kwargs)
+        543 
+        544         return resp
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/sessions.py in send(self, request, **kwargs)
+        653 
+        654         # Send the request
+    --> 655         r = adapter.send(request, **kwargs)
+        656 
+        657         # Total elapsed time of the request (approximately)
+
+
+    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/adapters.py in send(self, request, stream, timeout, verify, cert, proxies)
+        514                 raise SSLError(e, request=request)
+        515 
+    --> 516             raise ConnectionError(e, request=request)
+        517 
+        518         except ClosedPoolError as e:
+
+
+    ConnectionError: HTTPSConnectionPool(host='api.crc-sas.org', port=443): Max retries exceeded with url: /ws-api/indices_vegetacion/serie_temporal/ndvi/2019-01-01T00:00:00/2019-01-31T00:00:00 (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7fbb124e0910>: Failed to establish a new connection: [Errno -2] Name or service not known'))
 
 
 Finalmente, se presenta un ejemplo para 3 polígonos correspondientes a zonas dentro de provincias argentinas (Buenos Aires, Santa Fe y Córdoba).
@@ -1436,16 +1698,19 @@ _ = figure.suptitle('Precipitaciones CHIRPS para Paysandú y Durazno (Uruguay)\n
 
 for ax, fecha, raster in zip(figure.get_axes(), fechas, rasters):
     __ = ax.set_title(fecha.strftime("%b %d, %Y")), ax.set_xticks([]), ax.set_yticks([])
-    im = ax.imshow(raster if len(fechas) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
+    im = ax.imshow(raster if len(rasters) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
 
 _ = figure.colorbar(im, ax=figure.get_axes())
 
+plt.axis('off')
 plt.show()
 
 ```
 
 
-![svg](apidoc_files/apidoc_58_0.svg)
+    
+![svg](apidoc_files/apidoc_60_0.svg)
+    
 
 
 Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
@@ -1624,12 +1889,15 @@ for ax, fecha, raster in zip(figure.get_axes(), fechas, rasters):
 
 _ = figure.colorbar(im, ax=figure.get_axes())
 
+plt.axis('off')
 plt.show()
 
 ```
 
 
-![svg](apidoc_files/apidoc_64_0.svg)
+    
+![svg](apidoc_files/apidoc_66_0.svg)
+    
 
 
 Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
@@ -1946,15 +2214,18 @@ _ = figure.suptitle('Totales de precipitación a 15 días basados en CHIRPS-GEFS
 
 for ax, fecha, raster in zip(figure.get_axes(), fechas, rasters):
     __ = ax.set_title(fecha.strftime("%b %d, %Y")), ax.set_xticks([]), ax.set_yticks([])
-    im = ax.imshow(raster if len(fechas) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
+    im = ax.imshow(raster if len(rasters) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
 
 _ = figure.colorbar(im, ax=figure.get_axes())
 
+plt.axis('off')
 plt.show()
 ```
 
 
-![svg](apidoc_files/apidoc_70_0.svg)
+    
+![svg](apidoc_files/apidoc_72_0.svg)
+    
 
 
 ## 4.8. Índice de Stress Evaporativo (ESI) y percentiles derivados
@@ -2017,15 +2288,18 @@ _ = figure.suptitle('Índice de Stress Evaporativo (ESI) para Paysandú y Durazn
 
 for ax, fecha, raster in zip(figure.get_axes(), fechas, rasters):
     __ = ax.set_title(fecha.strftime("%b %d, %Y")), ax.set_xticks([]), ax.set_yticks([])
-    im = ax.imshow(raster if len(fechas) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
+    im = ax.imshow(raster if len(rasters) > 1 else rasters, vmin=rasters.min(), vmax=rasters.max(), cmap='viridis')
 
 _ = figure.colorbar(im, ax=figure.get_axes())
 
+plt.axis('off')
 plt.show()
 ```
 
 
-![svg](apidoc_files/apidoc_72_0.svg)
+    
+![svg](apidoc_files/apidoc_74_0.svg)
+    
 
 
 Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
@@ -2225,6 +2499,672 @@ print(datos_esi.to_markdown(tablefmt="github", showindex=False))
 | Uruguay      | MAD           | 2019-01-29 |  0.4055 |
 
 
+## 4.9. Estimaciones de humedad del suelo y contenido del agua sub-superficial (GRACE).
+
+Los productos resultantes de la misión GRACE (Gravity Recovery and Climate Experiment) - que forma parte de un proyecto conjunto entre la NASA (https://www.nasa.gov/) y la Agencia Espacial Alemana (https://www.dlr.de), abordan una de las carencias más importantes de los sistemas de monitoreo de sequía: “la falta de información objetiva acerca de humedad de suelo en capas profundas y los niveles de napa subterránea”. 
+
+A partir del modelo de captación de superficie terrestre (CLSM – [24]) se han definido tres variables relevantes para el monitoreo de la sequía: humedad superficial del suelo (surface soil moisture – SFSM), humedad del suelo en la zona de raíces (root zone soil moisture – RTZSM) y almacenamiento de agua subterránea (groundwater storage – GWS). Estos tres productos están disponibles en el sitio https://nasagrace.unl.edu/ con frecuencia semanal y datos desde febrero de 2003 hasta la fecha. 
+
+Este servicio permite consultar valores de los productos GRACE gws_inst - Groundwater Percentile (Contenido de agua subterránea, expresado en percentiles), rtzsm_inst - Root Zone Soil Moisture Percentile (Humedad del suelo en zona de raíces, expresada en percentiles), sfsm_inst - Surface Soil Moisture Percentile (Humedad superficial del suelo, expresada en percentiles) para cualquier área incluida dentro del CRC-SAS, la cual debe especificarse en formato GeoJSON [17]. Para limitar el volumen de datos a transferir por medio del servicio, el área de la zona especificada no debe exceder los 2.000.000 km^2^.
+
+El servicio devuelve como respuesta un stream de datos binarios correspondiente a un archivo de formato NetCDF [18]. Dicho archivo NetCDF tiene la siguiente estructura de dimensiones y variables:
+
+  * Sistema de coordenadas: 
+    * Latitud/Longitud: sistema de coordenadas expresadas en grados decimales;
+    * String de proyección: +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0;
+    * Código EPSG: 4326.
+  * Dimensiones: 
+    * longitude: coordenada X (o longitud) expresada en grados decimales;
+    * latitude: coordenada Y (o latitud) expresada en grados decimales;
+    * time: cantidad de días desde el 1 de Enero de 1970 (día 0); corresponde a la fecha de inicio de la péntada o mes asociado a la capa de datos.
+  * Variables: 
+    * gws_inst o rtzsm_inst o sfsm_inst: producto seleccionado, expresado en percentiles.
+    
+Con el propósito de facilitar la manipulación de los datos devueltos (que requiere conocimiento sobre archivos NetCDF), se recomienda enfáticamente utilizar la función *ConsumirServicioEspacial* provista al inicio del documento. Esta función permite invocar el servicio y obtener directamente un objeto de tipo *raster* [19].
+
+*Ruta*: /grace/{producto:string}/{fecha_desde:date}/{fecha_hasta:date}
+
+*Método*: POST
+
+*Parámetros*: 
+
+  * producto: 
+    ** gws_inst: Groundwater Percentile (Contenido de agua subterránea, expresado en percentiles)
+    ** rtzsm_inst: Root Zone Soil Moisture Percentile (Humedad del suelo en zona de raíces, expresada en percentiles)
+    ** sfsm_inst: Surface Soil Moisture Percentile (Humedad superficial del suelo, expresada en percentiles)
+  * fecha_desde: fecha de inicio del período a consultar (en formato ISO-8601 [20]); 
+  * fecha_hasta: fecha de fin del período a consultar (en formato ISO-8601 [20]).
+  
+*Parámetros del cuerpo del request*:
+  
+  * zona.geojson: string de formato GeoJSON que representa la zona sobre la cual se efectuará la consulta.
+  
+*Respuesta*: Stream binario correspondiente a un archivo NetCDF (ver descripción en párrafos anteriores).
+
+*Ejemplo*:
+
+
+
+``` python
+# Buscar GRACE para la primera quincena de Enero de 2021 (Paraguay - PY).
+fecha_desde = dateutil.parser.parse("2021-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-01-15").isoformat()
+url_grace = f"{base_url}/grace/gws_inst/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PY.geojson"
+zona_gdf = gpd.read_file(zona_geojson)
+grace_xr = consumir_servicio_espacial_xarray(url=url_grace, usuario=usuario_default, clave=clave_default,
+                                             archivo_geojson_zona=zona_geojson)
+
+# Definir fechas a graficar
+fechas = [pd.to_datetime(str(t)) for t in grace_xr.gws_inst.time.values]
+fechas = [fechas[0]]
+                                                     
+# Graficar rasters de GRACE
+figure, axes = plt.subplots(nrows=math.ceil(len(fechas) / 2), ncols=1 + (1 % len(fechas)),
+                            constrained_layout=True)
+_ = figure.suptitle('Contenido de agua subterránea (GRACE) para Paraguay\n'
+                    'Percentiles para el producto gws_inst')
+
+for i, ax, fecha in zip(range(len(fechas)), figure.get_axes(), fechas):
+    zona_gdf.boundary.plot(ax=ax, color='grey')
+    grace_xr.gws_inst[i, :, :].plot.imshow(ax=ax, cbar_kwargs={'label': ''})
+    __ = ax.set_title(fecha.strftime("%b %d, %Y"))
+    ax.set_xticks([]), ax.xaxis.label.set_visible(False)
+    ax.set_yticks([]), ax.yaxis.label.set_visible(False)
+
+plt.show()
+```
+
+
+    
+![svg](apidoc_files/apidoc_80_0.svg)
+    
+
+
+
+``` python
+# Buscar GRACE para la primera quincena de Enero de 2021 (Paraguay - PY).
+fecha_desde = dateutil.parser.parse("2021-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-01-15").isoformat()
+url_grace = f"{base_url}/grace/rtzsm_inst/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PY.geojson"
+zona_gdf = gpd.read_file(zona_geojson)
+grace_xr = consumir_servicio_espacial_xarray(url=url_grace, usuario=usuario_default, clave=clave_default,
+                                             archivo_geojson_zona=zona_geojson)
+
+# Definir fechas a graficar
+fechas = [pd.to_datetime(str(t)) for t in grace_xr.rtzsm_inst.time.values]
+fechas = [fechas[0]]
+                                                     
+# Graficar rasters de GRACE
+figure, axes = plt.subplots(nrows=math.ceil(len(fechas) / 2), ncols=1 + (1 % len(fechas)),
+                            constrained_layout=True)
+_ = figure.suptitle('Humedad del suelo en zona de raíces (GRACE) para Paraguay\n'
+                    'Percentiles para el producto rtzsm_inst')
+
+for i, ax, fecha in zip(range(len(fechas)), figure.get_axes(), fechas):
+    zona_gdf.boundary.plot(ax=ax, color='grey')
+    grace_xr.rtzsm_inst[i, :, :].plot.imshow(ax=ax, cbar_kwargs={'label': ''})
+    __ = ax.set_title(fecha.strftime("%b %d, %Y"))
+    ax.set_xticks([]), ax.xaxis.label.set_visible(False)
+    ax.set_yticks([]), ax.yaxis.label.set_visible(False)
+
+plt.show()
+```
+
+
+    
+![svg](apidoc_files/apidoc_81_0.svg)
+    
+
+
+
+``` python
+# Buscar GRACE para la primera quincena de Enero de 2021 (Paraguay - PY).
+fecha_desde = dateutil.parser.parse("2021-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-01-15").isoformat()
+url_grace = f"{base_url}/grace/sfsm_inst/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PY.geojson"
+zona_gdf = gpd.read_file(zona_geojson)
+grace_xr = consumir_servicio_espacial_xarray(url=url_grace, usuario=usuario_default, clave=clave_default,
+                                             archivo_geojson_zona=zona_geojson)
+
+# Definir fechas a graficar
+fechas = [pd.to_datetime(str(t)) for t in grace_xr.sfsm_inst.time.values]
+fechas = [fechas[0]]
+                                                     
+# Graficar rasters de GRACE
+figure, axes = plt.subplots(nrows=math.ceil(len(fechas) / 2), ncols=1 + (1 % len(fechas)),
+                            constrained_layout=True)
+_ = figure.suptitle('Humedad superficial del suelo (GRACE) para Paraguay\n'
+                    'Percentiles para el producto sfsm_inst')
+
+for i, ax, fecha in zip(range(len(fechas)), figure.get_axes(), fechas):
+    zona_gdf.boundary.plot(ax=ax, color='grey')
+    grace_xr.sfsm_inst[i, :, :].plot.imshow(ax=ax, cbar_kwargs={'label': ''})
+    __ = ax.set_title(fecha.strftime("%b %d, %Y"))
+    ax.set_xticks([]), ax.xaxis.label.set_visible(False)
+    ax.set_yticks([]), ax.yaxis.label.set_visible(False)
+
+plt.show()
+```
+
+
+    
+![svg](apidoc_files/apidoc_82_0.svg)
+    
+
+
+Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
+
+Los puntos o polígonos deben especificarse en formato GeoJSON [17]. Además, cada punto o polígono debe tener asociado al menos un atributo para que el servicio pueda devolver una respuesta en la cual se puedan identificar cada una de las geometrías (puntos o polígonos). Por ejemplo, en caso de que los polígonos correspondan a localidades, el archivo GeoJSON podría contener atributos indicando el código de localidad o su nombre. Para el caso de los puntos, se podría indicar un nombre asociado a cada una de las ubicaciones, un código o los atributos que el usuario desee agregar.
+
+*Ruta*: /grace/serie_temporal/{producto:string}/{fecha_desde:date}/{fecha_hasta:date}
+
+*Método*: POST
+
+*Parámetros*: 
+
+  *producto: 
+    ** gws_inst: Groundwater Percentile (Contenido de agua subterránea, expresado en percentiles)
+    ** rtzsm_inst: Root Zone Soil Moisture Percentile (Humedad del suelo en zona de raíces, expresada en percentiles)
+    ** sfsm_inst: Surface Soil Moisture Percentile (Humedad superficial del suelo, expresada en percentiles)
+  * fecha_desde: fecha de inicio del período a consultar (en formato ISO-8601 [20]); 
+  * fecha_hasta: fecha de fin del período a consultar (en formato ISO-8601 [20]).
+  
+*Parámetros del cuerpo del request*:
+  
+  * zona.geojson: string de formato GeoJSON que representa los puntos o polígonos sobre los cuales se efectuará la consulta.
+  
+*Respuesta*:
+  
+El servicio devuelve una respuesta en formato JSON, la cual puede convertirse a un formato tabular. La respuesta contiene los datos provistos por el usuario para cada una de las geometrías y los siguientes campos, según el usuario haya especificado puntos o polígonos:
+
+[
+  {
+    ...
+    <atributos provistos por el usuario para cada punto o polígono>
+    ...,
+    estadístico: string (solamente para el caso de polígonos, ver detalle a continuación),
+    fecha: date (fecha dentro del rango de fechas especificadas por el usuario),
+    valor: float (valor asociado al punto o polígono para la fecha especificada - y al estadístico en el caso de polígonos)
+  }
+]
+
+Los estadísticos devueltos para el caso de las consultas asociadas a los polígonos se codifican de la siguiente manera:
+
+  * 0%: mínimo valor dentro del polígono
+  * 25%: percentil 25 de los valores dentro del polígono
+  * 50%: mediana de los valores dentro del polígono
+  * 75%: percentil 75 de los valores dentro del polígono
+  * 100%: máximo valor dentro del polígono
+  * Media: media de los valores dentro del polígono
+  * Desvio: desvío estándar de los valores dentro del polígono
+  * MAD: desvío mediano absoluto de los valores dentro del polígono
+  
+A continuación se presentan dos ejemplos: una consulta para puntos y otra para polígonos. Para la consulta basada en puntos, cada uno de ellos tiene asociado un nombre que identifica la ubicación. Para el caso de los polígonos, cada uno de ellos tiene asociado un nombre que representa la ubicación. Se presenta primero el ejemplo para ubicaciones puntuales.
+
+
+``` python
+# Buscar GRACE desde Enero de 2011 hasta Diciembre de 2021 en 1 sola ubicación (Capitán Meza - Paraguay).
+fecha_desde = dateutil.parser.parse("2011-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-12-31").isoformat()
+url_grace = f"{base_url}/grace/serie_temporal/sfsm_inst/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PuntoCapMezaPY.geojson" 
+serie_temporal = consumir_servicio_espacial_serie_temporal(url=url_grace,
+                                                           usuario=usuario_default, clave=clave_default,
+                                                           archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(serie_temporal.head(15).to_markdown(tablefmt="github", showindex=False))
+```
+
+| nombre    | fecha      |   valor |
+|-----------|------------|---------|
+| Cap. Meza | 2011-01-03 | 86.7848 |
+| Cap. Meza | 2011-01-10 | 87.2439 |
+| Cap. Meza | 2011-01-17 | 73.3442 |
+| Cap. Meza | 2011-01-24 | 86.8264 |
+| Cap. Meza | 2011-01-31 | 79.4942 |
+| Cap. Meza | 2011-02-07 | 88.3969 |
+| Cap. Meza | 2011-02-14 | 80.0395 |
+| Cap. Meza | 2011-02-21 | 90.6494 |
+| Cap. Meza | 2011-02-28 | 89.0999 |
+| Cap. Meza | 2011-03-07 | 81.1131 |
+| Cap. Meza | 2011-03-14 | 74.5022 |
+| Cap. Meza | 2011-03-21 | 66.3547 |
+| Cap. Meza | 2011-03-28 | 93.2651 |
+| Cap. Meza | 2011-04-04 | 81.336  |
+| Cap. Meza | 2011-04-11 | 65.5442 |
+
+
+
+``` python
+# Buscar GRACE desde Enero de 2011 hasta Diciembre de 2021 en 1 sola ubicación (Capitán Meza - Paraguay).
+fecha_desde = dateutil.parser.parse("2011-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-12-31").isoformat()
+url_grace = f"{base_url}/grace/serie_temporal/sfsm_inst/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PuntoCapMezaPY.geojson" 
+serie_temporal = consumir_servicio_espacial_serie_temporal(url=url_grace,
+                                                           usuario=usuario_default, clave=clave_default,
+                                                           archivo_geojson_zona=zona_geojson)
+# Serie temporal
+serie_temporal['fecha'] = pd.to_datetime(serie_temporal.fecha)
+#
+plt.figure(figsize=(10, 5))
+plt.suptitle('Percentiles de humedad superficial del suelo (GRACE) para Cap. Meza (Paraguay)', fontsize='x-large')
+
+seaborn.set_style('whitegrid')
+ax = seaborn.lineplot(x=serie_temporal.fecha, y=serie_temporal.valor, color="grey", marker="o", mec="white", mfc="red")
+
+ax.xaxis.set_major_locator(mdates.MonthLocator(interval=12))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%Y'))
+ax.set_xbound(lower=datetime.date(2010, 12, 1), upper=datetime.date(2022, 1, 31))
+
+ax.set_title('Producto sfsm_inst (2011-2021)', fontsize='large')
+ax.set_xlabel('Mes - Año')
+ax.set_ylabel('Percentiles de humedad superficial del suelo')
+ax.legend(fontsize='large', ncol=4)
+
+plt.show()
+```
+
+    No handles with labels found to put in legend.
+
+
+
+    
+![svg](apidoc_files/apidoc_85_1.svg)
+    
+
+
+Finalmente, se presenta un ejemplo para 1 polígono correspondiente al departamento (división administrativa de nivel 1) de Itapuá en Paraguay.
+
+
+``` python
+# Buscar GRACE desde Enero de 2011 hasta Diciembre de 2021 para el departamento de Itapúa (Paraguay).
+fecha_desde = dateutil.parser.parse("2011-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-12-31").isoformat()
+url_grace = f"{base_url}/grace/serie_temporal/sfsm_inst/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/ItapuaPY.geojson" 
+serie_temporal = consumir_servicio_espacial_serie_temporal(url=url_grace,
+                                                           usuario=usuario_default, clave=clave_default,
+                                                           archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(serie_temporal.head(15).to_markdown(tablefmt="github", showindex=False))
+```
+
+| NAME   | estadistico   | fecha      |   valor |
+|--------|---------------|------------|---------|
+| Itapúa | 0%            | 2011-01-03 | 75.1413 |
+| Itapúa | 25%           | 2011-01-03 | 81.0486 |
+| Itapúa | 50%           | 2011-01-03 | 82.483  |
+| Itapúa | 75%           | 2011-01-03 | 85.7321 |
+| Itapúa | 100%          | 2011-01-03 | 87.9798 |
+| Itapúa | Media         | 2011-01-03 | 83.1993 |
+| Itapúa | Desvio        | 2011-01-03 |  3.0883 |
+| Itapúa | MAD           | 2011-01-03 |  2.6933 |
+| Itapúa | 0%            | 2011-01-10 | 76.8699 |
+| Itapúa | 25%           | 2011-01-10 | 81.5711 |
+| Itapúa | 50%           | 2011-01-10 | 84.5759 |
+| Itapúa | 75%           | 2011-01-10 | 87.2439 |
+| Itapúa | 100%          | 2011-01-10 | 89.3736 |
+| Itapúa | Media         | 2011-01-10 | 84.231  |
+| Itapúa | Desvio        | 2011-01-10 |  3.6148 |
+
+
+
+``` python
+# Buscar GRACE desde Enero de 2017 hasta Diciembre de 2021 para el departamento de Itapúa (Paraguay).
+fecha_desde = dateutil.parser.parse("2017-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-12-31").isoformat()
+url_grace = f"{base_url}/grace/serie_temporal/sfsm_inst/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/ItapuaPY.geojson" 
+serie_temporal = consumir_servicio_espacial_serie_temporal(url=url_grace,
+                                                           usuario=usuario_default, clave=clave_default,
+                                                           archivo_geojson_zona=zona_geojson)
+# Serie temporal
+serie_temporal = (serie_temporal
+                    .assign(fecha=lambda x: pd.to_datetime(x.fecha))
+                    .query("estadistico in ['0%', '50%', '100%']"))
+#
+plt.figure(figsize=(10, 5))
+plt.suptitle('Percentiles de humedad superficial del suelo (GRACE) para Itapúa (Paraguay)', fontsize='x-large')
+
+seaborn.set_style('whitegrid')
+ax = seaborn.lineplot(x=serie_temporal.fecha, y=serie_temporal.valor, color="grey")
+
+ax.xaxis.set_major_locator(mdates.MonthLocator(interval=12))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%Y'))
+
+ax.set_title('Producto sfsm_inst (2017-2021)', fontsize='large')
+ax.set_xlabel('Mes - Año')
+ax.set_ylabel('Mediana y Rango de Percentile')
+ax.legend(fontsize='large', ncol=4)
+
+plt.show()
+```
+
+    No handles with labels found to put in legend.
+
+
+
+    
+![svg](apidoc_files/apidoc_88_1.svg)
+    
+
+
+## 4.10. SMAP
+
+SMAP era una misión combinada entre un radiómetro en banda L (pasivo) y un radar de microondas (SAR), el cual dejó de funcionar debido a una falla en el suministro de energía. Los sensores de microondas miden la emisión térmica de la superficie, la cual puede variar en función a las propiedades dieléctricas y la temperatura del objeto, a partir de la temperatura de brillo se puede estimar, a partir de un modelo de transferencia radiactiva, la humedad del suelo presente. Los valores de la estimación son una representación de la humedad volumétrica del suelo (cm3/cm3), es decir, la relación entre el volumen de agua y el volumen total del suelo (considerando la fase sólida, líquida y gaseosa presente en el suelo). La resolución temporal del satélite es de 3 días, obteniéndose un mapa integrado para la región Argentina/Sudamérica con dicha frecuencia, tanto para las pasadas descendentes (6 am – Hora Local), como ascendentes (6 pm – Hora Local). SMAP cuenta con una resolución espacial nativa de 36 km, que a partir del método de interpolación Backus-Gilbert, es posible obtener la humedad del suelo con una resolución de 9 km.
+
+Este servicio permite consultar valores de SMAP para las pasadas descendentes (6 am – Hora Local) para cualquier aŕea incluida dentro del CRC-SAS, la cual debe especificarse en formato GeoJSON [17]. Para limitar el volumen de datos a transferir por medio del servicio, el área de la zona especificada no debe exceder los 2.000.000 km^2^.
+
+El servicio devuelve como respuesta un stream de datos binarios correspondiente a un archivo de formato NetCDF [18]. Dicho archivo NetCDF tiene la siguiente estructura de dimensiones y variables:
+
+  * Sistema de coordenadas: 
+    * Latitud/Longitud: sistema de coordenadas expresadas en grados decimales;
+    * String de proyección: +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0;
+    * Código EPSG: 4326.
+  * Dimensiones: 
+    * longitude: coordenada X (o longitud) expresada en grados decimales;
+    * latitude: coordenada Y (o latitud) expresada en grados decimales;
+    * time: cantidad de días desde el 1 de Enero de 1970 (día 0); corresponde a la fecha de inicio de la péntada o mes asociado a la capa de datos.
+  * Variables: 
+    * soil_moisture_am: valor de humedad de capa superficial del suelo.
+    
+Con el propósito de facilitar la manipulación de los datos devueltos (que requiere conocimiento sobre archivos NetCDF), se recomienda enfáticamente utilizar la función *ConsumirServicioEspacial* provista al inicio del documento. Esta función permite invocar el servicio y obtener directamente un objeto de tipo *raster* [19].
+
+*Ruta*: /smap/{producto:string}/{fecha_desde:date}/{fecha_hasta:date}
+
+*Método*: POST
+
+*Parámetros*: 
+
+  * producto: { soil_moisture_am = Soil Moisture AM };
+  * fecha_desde: fecha de inicio del período a consultar (en formato ISO-8601 [20]); 
+  * fecha_hasta: fecha de fin del período a consultar (en formato ISO-8601 [20]).
+  
+*Parámetros del cuerpo del request*:
+  
+  * zona.geojson: string de formato GeoJSON que representa la zona sobre la cual se efectuará la consulta.
+  
+*Respuesta*: Stream binario correspondiente a un archivo NetCDF (ver descripción en párrafos anteriores).
+
+*Ejemplo*:
+
+
+``` python
+# Buscar SMAP para Enero de 2021 (departamento de Itapúa, Paraguay).
+fecha_desde = dateutil.parser.parse("2021-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-01-31").isoformat()
+url_smap = f"{base_url}/smap/soil_moisture_am/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/ItapuaPY.geojson"
+zona_gdf = gpd.read_file(zona_geojson)
+smap_xr_h = consumir_servicio_espacial_xarray(url=url_smap, usuario=usuario_default, clave=clave_default,
+                                              archivo_geojson_zona=zona_geojson)
+smap_xr_h = smap_xr_h.rio.set_spatial_dims(x_dim='easting', y_dim='northing')
+smap_xr_h = smap_xr_h.rio.write_crs(smap_xr_h.crs.proj4)
+smap_xr_h = smap_xr_h.rio.reproject("EPSG:4326")
+smap_xr_h = smap_xr_h.drop_vars('crs')
+
+# Buscar SMAP para Agosto de 2019 (departamento de Itapúa, Paraguay).
+fecha_desde = dateutil.parser.parse("2019-08-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2019-08-31").isoformat()
+url_smap = f"{base_url}/smap/soil_moisture_am/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/ItapuaPY.geojson"
+zona_gdf = gpd.read_file(zona_geojson)
+smap_xr_s = consumir_servicio_espacial_xarray(url=url_smap, usuario=usuario_default, clave=clave_default,
+                                              archivo_geojson_zona=zona_geojson)
+smap_xr_s = smap_xr_s.rio.set_spatial_dims(x_dim="easting", y_dim="northing")
+smap_xr_s = smap_xr_s.rio.write_crs(smap_xr_s.crs.proj4)
+smap_xr_s = smap_xr_s.rio.reproject("EPSG:4326")
+smap_xr_s = smap_xr_s.drop_vars('crs')
+
+# Graficar rasters de GRACE
+figure, axes = plt.subplots(nrows=1, ncols=2, constrained_layout=True)
+_ = figure.suptitle('Humedad superficial del suelo (SMAP) para Itapúa (Paraguay)\n'
+                    'Valores para el producto soil_moisture_am')
+
+ax1 = figure.get_axes()[0]
+zona_gdf.boundary.plot(ax=ax1, color='black')
+smap_xr_h.soil_moisture_am[5, :, :].plot.imshow(ax=ax1, cbar_kwargs={'label': ''})
+__ = ax1.set_title('Ejemplo día posterior a Periodo Húmedo')
+ax1.set_xticks([]), ax1.xaxis.label.set_visible(False)
+ax1.set_yticks([]), ax1.yaxis.label.set_visible(False)
+
+ax2 = figure.get_axes()[1]
+zona_gdf.boundary.plot(ax=ax2, color='black')
+smap_xr_s.soil_moisture_am[9, :, :].plot.imshow(ax=ax2, cbar_kwargs={'label': ''})
+__ = ax2.set_title('Ejemplo día posterior a Periodo Seco')
+ax2.set_xticks([]), ax2.xaxis.label.set_visible(False)
+ax2.set_yticks([]), ax2.yaxis.label.set_visible(False)
+
+plt.show()
+```
+
+
+    ---------------------------------------------------------------------------
+
+    AttributeError                            Traceback (most recent call last)
+
+    /tmp/ipykernel_18559/4064662779.py in <module>
+          8                                               archivo_geojson_zona=zona_geojson)
+          9 smap_xr_h = smap_xr_h.rio.set_spatial_dims(x_dim='easting', y_dim='northing')
+    ---> 10 smap_xr_h = smap_xr_h.rio.write_crs(smap_xr_h.crs.proj4)
+         11 smap_xr_h = smap_xr_h.rio.reproject("EPSG:4326")
+         12 smap_xr_h = smap_xr_h.drop_vars('crs')
+
+
+    AttributeError: 'str' object has no attribute 'proj4'
+
+
+
+```
+Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
+
+Los puntos o polígonos deben especificarse en formato GeoJSON [17]. Además, cada punto o polígono debe tener asociado al menos un atributo para que el servicio pueda devolver una respuesta en la cual se puedan identificar cada una de las geometrías (puntos o polígonos). Por ejemplo, en caso de que los polígonos correspondan a localidades, el archivo GeoJSON podría contener atributos indicando el código de localidad o su nombre. Para el caso de los puntos, se podría indicar un nombre asociado a cada una de las ubicaciones, un código o los atributos que el usuario desee agregar.
+
+*Ruta*: /smap/serie_temporal/{producto:string}/{fecha_desde:date}/{fecha_hasta:date}
+
+*Método*: POST
+
+*Parámetros*: 
+
+  * producto: { soil_moisture_am = Soil Moisture AM };
+  * fecha_desde: fecha de inicio del período a consultar (en formato ISO-8601 [20]); 
+  * fecha_hasta: fecha de fin del período a consultar (en formato ISO-8601 [20]).
+  
+*Parámetros del cuerpo del request*:
+  
+  * zona.geojson: string de formato GeoJSON que representa los puntos o polígonos sobre los cuales se efectuará la consulta.
+  
+*Respuesta*:
+  
+El servicio devuelve una respuesta en formato JSON, la cual puede convertirse a un formato tabular. La respuesta contiene los datos provistos por el usuario para cada una de las geometrías y los siguientes campos, según el usuario haya especificado puntos o polígonos:
+
+[
+  {
+    ...
+    <atributos provistos por el usuario para cada punto o polígono>
+    ...,
+    estadístico: string (solamente para el caso de polígonos, ver detalle a continuación),
+    fecha: date (fecha dentro del rango de fechas especificadas por el usuario),
+    valor: float (valor asociado al punto o polígono para la fecha especificada - y al estadístico en el caso de polígonos)
+  }
+]
+
+Los estadísticos devueltos para el caso de las consultas asociadas a los polígonos se codifican de la siguiente manera:
+
+  * 0%: mínimo valor dentro del polígono
+  * 25%: percentil 25 de los valores dentro del polígono
+  * 50%: mediana de los valores dentro del polígono
+  * 75%: percentil 75 de los valores dentro del polígono
+  * 100%: máximo valor dentro del polígono
+  * Media: media de los valores dentro del polígono
+  * Desvio: desvío estándar de los valores dentro del polígono
+  * MAD: desvío mediano absoluto de los valores dentro del polígono
+  
+A continuación se presentan dos ejemplos: una consulta para puntos y otra para polígonos. Para la consulta basada en puntos, cada uno de ellos tiene asociado un nombre que identifica la ubicación. Para el caso de los polígonos, cada uno de ellos tiene asociado un nombre que representa la ubicación. Se presenta primero el ejemplo para ubicaciones puntuales.
+```
+
+
+      File "/tmp/ipykernel_18559/2470254118.py", line 1
+        Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
+                ^
+    SyntaxError: invalid syntax
+
+
+
+
+``` python
+# Buscar SMAP desde Enero de 2016 hasta Diciembre de 2021 en 1 sola ubicación (Capitán Meza - Paraguay).
+fecha_desde = dateutil.parser.parse("2016-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-12-31").isoformat()
+url_smap = f"{base_url}/smap/serie_temporal/soil_moisture_am/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PuntoCapMezaPY.geojson" 
+serie_temporal = consumir_servicio_espacial_serie_temporal(url=url_smap,
+                                                           usuario=usuario_default, clave=clave_default,
+                                                           archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(serie_temporal.head(15).to_markdown(tablefmt="github", showindex=False))
+```
+
+| nombre    | fecha      |   valor |
+|-----------|------------|---------|
+| Cap. Meza | 2016-01-01 |  0.3523 |
+| Cap. Meza | 2016-01-04 |  0.3647 |
+| Cap. Meza | 2016-01-07 |  0.3494 |
+| Cap. Meza | 2016-01-10 |  0.3103 |
+| Cap. Meza | 2016-01-13 |  0.2528 |
+| Cap. Meza | 2016-01-16 |  0.2406 |
+| Cap. Meza | 2016-01-19 |  0.2192 |
+| Cap. Meza | 2016-01-22 |  0.223  |
+| Cap. Meza | 2016-01-25 |  0.2701 |
+| Cap. Meza | 2016-01-28 |  0.3049 |
+| Cap. Meza | 2016-01-31 |  0.4626 |
+| Cap. Meza | 2016-02-03 |  0.3503 |
+| Cap. Meza | 2016-02-06 |  0.3862 |
+| Cap. Meza | 2016-02-09 |  0.3798 |
+| Cap. Meza | 2016-02-12 |  0.3555 |
+
+
+
+``` python
+# Buscar SMAP desde Enero de 2017 hasta Diciembre de 2021 en 1 sola ubicación (Capitán Meza - Paraguay).
+fecha_desde = dateutil.parser.parse("2017-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-12-31").isoformat()
+url_smap = f"{base_url}/smap/serie_temporal/soil_moisture_am/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/PuntoCapMezaPY.geojson" 
+serie_temporal = consumir_servicio_espacial_serie_temporal(url=url_smap,
+                                                           usuario=usuario_default, clave=clave_default,
+                                                           archivo_geojson_zona=zona_geojson)
+# Serie temporal
+serie_temporal = (serie_temporal
+                    .assign(fecha=lambda x: pd.to_datetime(x.fecha))
+                    .query("valor <= 1"))
+#
+plt.figure(figsize=(10, 5))
+plt.suptitle('Humedad superficial del suelo (SMAP) para Cap. Meza (Paraguay)', fontsize='x-large')
+
+seaborn.set_style('whitegrid')
+ax = seaborn.lineplot(x=serie_temporal.fecha, y=serie_temporal.valor, color="grey", marker="o", mec="white", mfc="red")
+
+ax.xaxis.set_major_locator(mdates.MonthLocator(interval=12))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%Y'))
+
+ax.set_title('Producto soil_moisture_am (2017-2021)', fontsize='large')
+ax.set_xlabel('Mes - Año')
+ax.set_ylabel('Valores de humedad superficial del suelo')
+ax.legend(fontsize='large', ncol=4)
+
+plt.show()
+```
+
+    No handles with labels found to put in legend.
+
+
+
+    
+![svg](apidoc_files/apidoc_93_1.svg)
+    
+
+
+Finalmente, se presenta un ejemplo para 1 polígono correspondiente al departamento (división administrativa de nivel 1) de Itapuá en Paraguay.
+
+
+``` python
+# Buscar SMAP desde Enero de 2011 hasta Diciembre de 2021 para el departamento de Itapúa (Paraguay).
+fecha_desde = dateutil.parser.parse("2011-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-12-31").isoformat()
+url_smap = f"{base_url}/smap/serie_temporal/soil_moisture_am/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/ItapuaPY.geojson" 
+serie_temporal = consumir_servicio_espacial_serie_temporal(url=url_smap,
+                                                           usuario=usuario_default, clave=clave_default,
+                                                           archivo_geojson_zona=zona_geojson)
+# Mostrar datos en formato tabular
+print(serie_temporal.head(15).to_markdown(tablefmt="github", showindex=False))
+```
+
+| NAME   | estadistico   | fecha      |       valor |
+|--------|---------------|------------|-------------|
+| Itapúa | 0%            | 2015-01-01 | 9.96921e+36 |
+| Itapúa | 25%           | 2015-01-01 | 9.96921e+36 |
+| Itapúa | 50%           | 2015-01-01 | 9.96921e+36 |
+| Itapúa | 75%           | 2015-01-01 | 9.96921e+36 |
+| Itapúa | 100%          | 2015-01-01 | 9.96921e+36 |
+| Itapúa | Media         | 2015-01-01 | 9.96921e+36 |
+| Itapúa | Desvio        | 2015-01-01 | 0           |
+| Itapúa | MAD           | 2015-01-01 | 0           |
+| Itapúa | 0%            | 2015-01-04 | 9.96921e+36 |
+| Itapúa | 25%           | 2015-01-04 | 9.96921e+36 |
+| Itapúa | 50%           | 2015-01-04 | 9.96921e+36 |
+| Itapúa | 75%           | 2015-01-04 | 9.96921e+36 |
+| Itapúa | 100%          | 2015-01-04 | 9.96921e+36 |
+| Itapúa | Media         | 2015-01-04 | 9.96921e+36 |
+| Itapúa | Desvio        | 2015-01-04 | 0           |
+
+
+
+``` python
+# Buscar SMAP desde Enero de 2017 hasta Diciembre de 2021 para el departamento de Itapúa (PY).
+fecha_desde = dateutil.parser.parse("2017-01-01").isoformat()
+fecha_hasta = dateutil.parser.parse("2021-12-31").isoformat()
+url_smap = f"{base_url}/smap/serie_temporal/soil_moisture_am/{fecha_desde}/{fecha_hasta}"
+zona_geojson = os.getcwd() + "/data/ItapuaPY.geojson" 
+serie_temporal = consumir_servicio_espacial_serie_temporal(url=url_smap,
+                                                           usuario=usuario_default, clave=clave_default,
+                                                           archivo_geojson_zona=zona_geojson)
+# Serie temporal
+serie_temporal = (serie_temporal
+                    .assign(fecha=lambda x: pd.to_datetime(x.fecha))
+                    .query("estadistico in ['0%', '50%', '100%']"))
+#
+plt.figure(figsize=(10, 5))
+plt.suptitle('Humedad superficial del suelo (SMAP) para Itapúa (Paraguay)', fontsize='x-large')
+
+seaborn.set_style('whitegrid')
+ax = seaborn.lineplot(x=serie_temporal.fecha, y=serie_temporal.valor, color="grey")
+
+ax.xaxis.set_major_locator(mdates.MonthLocator(interval=12))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%Y'))
+
+ax.set_title('Producto soil_moisture_am (2017-2021)', fontsize='large')
+ax.set_xlabel('Mes - Año')
+ax.set_ylabel('Mediana y Rango de Valores')
+ax.legend(fontsize='large', ncol=4)
+
+plt.show()
+```
+
+    No handles with labels found to put in legend.
+
+
+
+    
+![svg](apidoc_files/apidoc_96_1.svg)
+    
+
+
 # Referencias
 
 [1]   https://es.wikipedia.org/wiki/Interfaz_de_programaci%C3%B3n_de_aplicaciones
@@ -2273,4 +3213,6 @@ print(datos_esi.to_markdown(tablefmt="github", showindex=False))
 [22]  https://chc.ucsb.edu/data/chirps-gefs
 
 [23]  https://sissa.crc-sas.org/monitoreo/indice-de-estres-evaporativo
+
+[24] Koster, R. D., Suarez, M. J., Ducharne, A., Stieglitz, M., and Kumar, P. (2000), A catchment-based approach to modeling land surface processes in a general circulation model: 1. Model structure. J. Geophys. Res., 105(D20), 24809– 24822, https://doi.org/10.1029/2000JD900327.
 
