@@ -5,7 +5,7 @@
 #### Daniel Bonhaure (danielbonhaure@gmail.com)
 #### Santiago Rovere (srovere@gmail.com)
 #### Guillermo Podestá (gpodesta@rsmas.miami.edu)
-#### *7 de diciembre de 2021*
+#### *30 de mayo de 2022*
 
 
 # 1. Introducción
@@ -116,16 +116,28 @@ A continuación, definiremos un set de funciones útiles en lenguaje Python que 
 
 ``` python
 # Definición de funciones globales, en lenguaje Python.
+
+# Suprimir warnings cuando requests.get o requests.post
+# son llamados con el paramétro verify igual a False)
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
 # Función para acceder a un servicio web definido por una URL utilizando el método GET.
 # Devuelve la respuesta como un pandas.DataFrame.
+# El parámetro verify=False implica que no se va a verificar la velidéz del certifiado
+# utilizado en la conexión SSL establecida con la API del CRC-SAS. Esto es útil cuando
+# la máquina cliente no puede validar el ceritificado emitido por la CA del CRC-SAS.
 def consumir_servicio_GET(url, usuario, clave):
-    respuesta = requests.get(url=url, auth=requests.auth.HTTPBasicAuth(usuario, clave))
+    respuesta = requests.get(url=url, auth=requests.auth.HTTPBasicAuth(usuario, clave), verify=False)
     return respuesta
 
 # Función para acceder a un servicio web definido por una URL utilizando el método POST.
-# Devuelve la respuesta como un pandas.DataFrame.    
+# Devuelve la respuesta como un pandas.DataFrame.  
+# El parámetro verify=False implica que no se va a verificar la velidéz del certifiado
+# utilizado en la conexión SSL establecida con la API del CRC-SAS. Esto es útil cuando
+# la máquina cliente no puede validar el ceritificado emitido por la CA del CRC-SAS.
 def consumir_servicio_POST(url, usuario, clave, data):
-    respuesta = requests.post(url=url, data=data, auth=requests.auth.HTTPBasicAuth(usuario, clave))
+    respuesta = requests.post(url=url, data=data, auth=requests.auth.HTTPBasicAuth(usuario, clave), verify=False)
     return respuesta
 
 # Función para acceder a un servicio web definido por una URL utilizando
@@ -537,9 +549,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_28_0.svg)
-    
 
 
 ### 4.2.2. Búsqueda de datos para *una* de las variables observadas en una estación meteorológica
@@ -614,9 +624,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_31_0.svg)
-    
 
 
 ## 4.3. Estadísticas y normales climáticas
@@ -773,9 +781,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_36_0.svg)
-    
 
 
 ### 4.3.3. Estadísticas mensuales
@@ -1046,7 +1052,7 @@ print(spi_3_ultimo.to_markdown(tablefmt="github", showindex=False))
 
 |   indice_configuracion_id |   omm_id |   pentada_fin |   ano |   metodo_imputacion_id |   valor_dato |   valor_indice |   percentil_dato |
 |---------------------------|----------|---------------|-------|------------------------|--------------|----------------|------------------|
-|                        43 |    87544 |            67 |  2021 |                      0 |        323.7 |          0.477 |          68.3318 |
+|                        43 |    87544 |            29 |  2022 |                      0 |        254.6 |        -0.1793 |           42.886 |
 
 
 ### 4.4.3. Parámetros y otros valores resultantes del ajuste de distribuciones
@@ -1297,9 +1303,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_53_0.svg)
-    
 
 
 Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
@@ -1362,166 +1366,24 @@ datos_ndvi = consumir_servicio_espacial_serie_temporal(url=url_modis,
 print(datos_ndvi.to_markdown(tablefmt="github", showindex=False))
 ```
 
-
-    ---------------------------------------------------------------------------
-
-    gaierror                                  Traceback (most recent call last)
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connection.py in _new_conn(self)
-        174             conn = connection.create_connection(
-    --> 175                 (self._dns_host, self.port), self.timeout, **extra_kw
-        176             )
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/util/connection.py in create_connection(address, timeout, source_address, socket_options)
-         72 
-    ---> 73     for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
-         74         af, socktype, proto, canonname, sa = res
-
-
-    /usr/lib/python3.7/socket.py in getaddrinfo(host, port, family, type, proto, flags)
-        747     addrlist = []
-    --> 748     for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
-        749         af, socktype, proto, canonname, sa = res
-
-
-    gaierror: [Errno -2] Name or service not known
-
-    
-    During handling of the above exception, another exception occurred:
-
-
-    NewConnectionError                        Traceback (most recent call last)
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connectionpool.py in urlopen(self, method, url, body, headers, retries, redirect, assert_same_host, timeout, pool_timeout, release_conn, chunked, body_pos, **response_kw)
-        705                 headers=headers,
-    --> 706                 chunked=chunked,
-        707             )
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connectionpool.py in _make_request(self, conn, method, url, timeout, chunked, **httplib_request_kw)
-        381         try:
-    --> 382             self._validate_conn(conn)
-        383         except (SocketTimeout, BaseSSLError) as e:
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connectionpool.py in _validate_conn(self, conn)
-       1009         if not getattr(conn, "sock", None):  # AppEngine might not have  `.sock`
-    -> 1010             conn.connect()
-       1011 
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connection.py in connect(self)
-        357         # Add certificate verification
-    --> 358         conn = self._new_conn()
-        359         hostname = self.host
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connection.py in _new_conn(self)
-        186             raise NewConnectionError(
-    --> 187                 self, "Failed to establish a new connection: %s" % e
-        188             )
-
-
-    NewConnectionError: <urllib3.connection.HTTPSConnection object at 0x7fbb124e0910>: Failed to establish a new connection: [Errno -2] Name or service not known
-
-    
-    During handling of the above exception, another exception occurred:
-
-
-    MaxRetryError                             Traceback (most recent call last)
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/adapters.py in send(self, request, stream, timeout, verify, cert, proxies)
-        448                     retries=self.max_retries,
-    --> 449                     timeout=timeout
-        450                 )
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/connectionpool.py in urlopen(self, method, url, body, headers, retries, redirect, assert_same_host, timeout, pool_timeout, release_conn, chunked, body_pos, **response_kw)
-        755             retries = retries.increment(
-    --> 756                 method, url, error=e, _pool=self, _stacktrace=sys.exc_info()[2]
-        757             )
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/urllib3/util/retry.py in increment(self, method, url, response, error, _pool, _stacktrace)
-        573         if new_retry.is_exhausted():
-    --> 574             raise MaxRetryError(_pool, url, error or ResponseError(cause))
-        575 
-
-
-    MaxRetryError: HTTPSConnectionPool(host='api.crc-sas.org', port=443): Max retries exceeded with url: /ws-api/indices_vegetacion/serie_temporal/ndvi/2019-01-01T00:00:00/2019-01-31T00:00:00 (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7fbb124e0910>: Failed to establish a new connection: [Errno -2] Name or service not known'))
-
-    
-    During handling of the above exception, another exception occurred:
-
-
-    ConnectionError                           Traceback (most recent call last)
-
-    /tmp/ipykernel_18559/1030283418.py in <module>
-          6 datos_ndvi = consumir_servicio_espacial_serie_temporal(url=url_modis,
-          7                                                        usuario=usuario_default, clave=clave_default,
-    ----> 8                                                        archivo_geojson_zona=zona_geojson)
-          9 # Mostrar datos en formato tabular
-         10 print(datos_ndvi.to_markdown(tablefmt="github", showindex=False))
-
-
-    /tmp/ipykernel_18559/3520485415.py in consumir_servicio_espacial_serie_temporal(url, usuario, clave, archivo_geojson_zona)
-         64     # a. Obtener datos y guardarlos en un archivo temporal
-         65     zona_geojson = pathlib.Path(archivo_geojson_zona).read_text()
-    ---> 66     respuesta = consumir_servicio_POST(url, usuario, clave, json.dumps({'zona.geojson': zona_geojson}))
-         67 
-         68     # b. Leer respuesta y crear un dataframe
-
-
-    /tmp/ipykernel_18559/3520485415.py in consumir_servicio_POST(url, usuario, clave, data)
-          9 # Devuelve la respuesta como un pandas.DataFrame.
-         10 def consumir_servicio_POST(url, usuario, clave, data):
-    ---> 11     respuesta = requests.post(url=url, data=data, auth=requests.auth.HTTPBasicAuth(usuario, clave))
-         12     return respuesta
-         13 
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/api.py in post(url, data, json, **kwargs)
-        115     """
-        116 
-    --> 117     return request('post', url, data=data, json=json, **kwargs)
-        118 
-        119 
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/api.py in request(method, url, **kwargs)
-         59     # cases, and look like a memory leak in others.
-         60     with sessions.Session() as session:
-    ---> 61         return session.request(method=method, url=url, **kwargs)
-         62 
-         63 
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/sessions.py in request(self, method, url, params, data, headers, cookies, files, auth, timeout, allow_redirects, proxies, hooks, stream, verify, cert, json)
-        540         }
-        541         send_kwargs.update(settings)
-    --> 542         resp = self.send(prep, **send_kwargs)
-        543 
-        544         return resp
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/sessions.py in send(self, request, **kwargs)
-        653 
-        654         # Send the request
-    --> 655         r = adapter.send(request, **kwargs)
-        656 
-        657         # Total elapsed time of the request (approximately)
-
-
-    ~/PythonProjects/crcsas-apidoc/.venv/lib/python3.7/site-packages/requests/adapters.py in send(self, request, stream, timeout, verify, cert, proxies)
-        514                 raise SSLError(e, request=request)
-        515 
-    --> 516             raise ConnectionError(e, request=request)
-        517 
-        518         except ClosedPoolError as e:
-
-
-    ConnectionError: HTTPSConnectionPool(host='api.crc-sas.org', port=443): Max retries exceeded with url: /ws-api/indices_vegetacion/serie_temporal/ndvi/2019-01-01T00:00:00/2019-01-31T00:00:00 (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7fbb124e0910>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+| nombre   | fecha      |   valor |
+|----------|------------|---------|
+| Lugar 1  | 2019-01-01 |  0.7364 |
+| Lugar 1  | 2019-01-09 |  0.7958 |
+| Lugar 1  | 2019-01-17 |  0.8067 |
+| Lugar 1  | 2019-01-25 |  0.8348 |
+| Lugar 2  | 2019-01-01 |  0.6335 |
+| Lugar 2  | 2019-01-09 |  0.8109 |
+| Lugar 2  | 2019-01-17 |  0.845  |
+| Lugar 2  | 2019-01-25 |  0.8975 |
+| Lugar 3  | 2019-01-01 |  0.6556 |
+| Lugar 3  | 2019-01-09 |  0.6808 |
+| Lugar 3  | 2019-01-17 |  0.6767 |
+| Lugar 3  | 2019-01-25 |  0.7233 |
+| Lugar 4  | 2019-01-01 |  0.5909 |
+| Lugar 4  | 2019-01-09 |  0.6446 |
+| Lugar 4  | 2019-01-17 |  0.6674 |
+| Lugar 4  | 2019-01-25 |  0.6883 |
 
 
 Finalmente, se presenta un ejemplo para 3 polígonos correspondientes a zonas dentro de provincias argentinas (Buenos Aires, Santa Fe y Córdoba).
@@ -1708,9 +1570,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_60_0.svg)
-    
 
 
 Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
@@ -1895,9 +1755,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_66_0.svg)
-    
 
 
 Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
@@ -2223,9 +2081,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_72_0.svg)
-    
 
 
 ## 4.8. Índice de Stress Evaporativo (ESI) y percentiles derivados
@@ -2297,9 +2153,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_74_0.svg)
-    
 
 
 Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
@@ -2576,9 +2430,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_80_0.svg)
-    
 
 
 
@@ -2613,9 +2465,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_81_0.svg)
-    
 
 
 
@@ -2650,9 +2500,7 @@ plt.show()
 ```
 
 
-    
 ![svg](apidoc_files/apidoc_82_0.svg)
-    
 
 
 Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
@@ -2772,9 +2620,7 @@ plt.show()
 
 
 
-    
 ![svg](apidoc_files/apidoc_85_1.svg)
-    
 
 
 Finalmente, se presenta un ejemplo para 1 polígono correspondiente al departamento (división administrativa de nivel 1) de Itapuá en Paraguay.
@@ -2848,9 +2694,7 @@ plt.show()
 
 
 
-    
 ![svg](apidoc_files/apidoc_88_1.svg)
-    
 
 
 ## 4.10. SMAP
@@ -2903,9 +2747,8 @@ zona_gdf = gpd.read_file(zona_geojson)
 smap_xr_h = consumir_servicio_espacial_xarray(url=url_smap, usuario=usuario_default, clave=clave_default,
                                               archivo_geojson_zona=zona_geojson)
 smap_xr_h = smap_xr_h.rio.set_spatial_dims(x_dim='easting', y_dim='northing')
-smap_xr_h = smap_xr_h.rio.write_crs(smap_xr_h.crs.proj4)
+smap_xr_h = smap_xr_h.rio.write_crs(smap_xr_h.crs)
 smap_xr_h = smap_xr_h.rio.reproject("EPSG:4326")
-smap_xr_h = smap_xr_h.drop_vars('crs')
 
 # Buscar SMAP para Agosto de 2019 (departamento de Itapúa, Paraguay).
 fecha_desde = dateutil.parser.parse("2019-08-01").isoformat()
@@ -2916,9 +2759,8 @@ zona_gdf = gpd.read_file(zona_geojson)
 smap_xr_s = consumir_servicio_espacial_xarray(url=url_smap, usuario=usuario_default, clave=clave_default,
                                               archivo_geojson_zona=zona_geojson)
 smap_xr_s = smap_xr_s.rio.set_spatial_dims(x_dim="easting", y_dim="northing")
-smap_xr_s = smap_xr_s.rio.write_crs(smap_xr_s.crs.proj4)
+smap_xr_s = smap_xr_s.rio.write_crs(smap_xr_s.crs)
 smap_xr_s = smap_xr_s.rio.reproject("EPSG:4326")
-smap_xr_s = smap_xr_s.drop_vars('crs')
 
 # Graficar rasters de GRACE
 figure, axes = plt.subplots(nrows=1, ncols=2, constrained_layout=True)
@@ -2943,23 +2785,9 @@ plt.show()
 ```
 
 
-    ---------------------------------------------------------------------------
-
-    AttributeError                            Traceback (most recent call last)
-
-    /tmp/ipykernel_18559/4064662779.py in <module>
-          8                                               archivo_geojson_zona=zona_geojson)
-          9 smap_xr_h = smap_xr_h.rio.set_spatial_dims(x_dim='easting', y_dim='northing')
-    ---> 10 smap_xr_h = smap_xr_h.rio.write_crs(smap_xr_h.crs.proj4)
-         11 smap_xr_h = smap_xr_h.rio.reproject("EPSG:4326")
-         12 smap_xr_h = smap_xr_h.drop_vars('crs')
+![svg](apidoc_files/apidoc_90_0.svg)
 
 
-    AttributeError: 'str' object has no attribute 'proj4'
-
-
-
-```
 Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
 
 Los puntos o polígonos deben especificarse en formato GeoJSON [17]. Además, cada punto o polígono debe tener asociado al menos un atributo para que el servicio pueda devolver una respuesta en la cual se puedan identificar cada una de las geometrías (puntos o polígonos). Por ejemplo, en caso de que los polígonos correspondan a localidades, el archivo GeoJSON podría contener atributos indicando el código de localidad o su nombre. Para el caso de los puntos, se podría indicar un nombre asociado a cada una de las ubicaciones, un código o los atributos que el usuario desee agregar.
@@ -3005,15 +2833,6 @@ Los estadísticos devueltos para el caso de las consultas asociadas a los políg
   * MAD: desvío mediano absoluto de los valores dentro del polígono
   
 A continuación se presentan dos ejemplos: una consulta para puntos y otra para polígonos. Para la consulta basada en puntos, cada uno de ellos tiene asociado un nombre que identifica la ubicación. Para el caso de los polígonos, cada uno de ellos tiene asociado un nombre que representa la ubicación. Se presenta primero el ejemplo para ubicaciones puntuales.
-```
-
-
-      File "/tmp/ipykernel_18559/2470254118.py", line 1
-        Además de poder descargar este producto en formato *raster*, también es posible extraer series temporales de valores para un conjunto de puntos (uno o más) o polígonos (uno o más). En el caso de la extracción para un conjunto de puntos, la respuesta devuelta por el servicio es una serie temporal de valores para cada punto dentro del rango de fechas especificado. En el caso de que la extracción sea realizada para un conjunto de polígonos, la respuesta devuelta por el servicio es una serie temporal de *estadísticos* (media, mediana, desvío estándar, desviación mediana absoluta, mínimo, máximo y los percentiles correspondientes al 25% y 75%) para cada polígono dentro del rango de fechas especificado.
-                ^
-    SyntaxError: invalid syntax
-
-
 
 
 ``` python
@@ -3084,9 +2903,7 @@ plt.show()
 
 
 
-    
 ![svg](apidoc_files/apidoc_93_1.svg)
-    
 
 
 Finalmente, se presenta un ejemplo para 1 polígono correspondiente al departamento (división administrativa de nivel 1) de Itapuá en Paraguay.
@@ -3137,6 +2954,7 @@ serie_temporal = consumir_servicio_espacial_serie_temporal(url=url_smap,
 # Serie temporal
 serie_temporal = (serie_temporal
                     .assign(fecha=lambda x: pd.to_datetime(x.fecha))
+                    .query("valor <= 1")
                     .query("estadistico in ['0%', '50%', '100%']"))
 #
 plt.figure(figsize=(10, 5))
@@ -3160,9 +2978,7 @@ plt.show()
 
 
 
-    
 ![svg](apidoc_files/apidoc_96_1.svg)
-    
 
 
 # Referencias
